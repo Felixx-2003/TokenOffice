@@ -14,7 +14,7 @@ import {
 } from './game';
 import { clearGame, loadGame, saveGame } from './storage';
 import { createUI } from './ui';
-import { installHarvestShortcut } from './controls';
+import { installPlayShortcut } from './controls';
 
 const root = document.querySelector<HTMLElement>('#app');
 if (!root) throw new Error('Missing #app element');
@@ -69,7 +69,7 @@ const ui = createUI(root, {
     saveGame(state);
   },
   onReset: () => {
-    if (!window.confirm('Reset your grove and erase all progress?')) return;
+    if (!window.confirm('Reset your arcade and erase all progress?')) return;
     clearGame();
     state = createInitialState(Date.now());
     ui.render(state);
@@ -77,7 +77,7 @@ const ui = createUI(root, {
   },
 });
 
-installHarvestShortcut(window, () => apply(tap(state), 440));
+installPlayShortcut(window, () => apply(tap(state), 440));
 
 ui.render(state);
 if (initialAdvance.earned > 0 && initialAdvance.elapsedMs >= 30_000) {

@@ -1,37 +1,29 @@
-# Pocket Grove — game plan
+# Pocket Arcade — short game plan
 
 ## Player promise
-Harvest a tiny garden for **Cash**, then build an automatic grove. Early levels arrive quickly; later goals ask the player to choose between plants, upgrades, and a stronger Auto Harvester. Purchases visibly fill the island.
+Turn one arcade play into a room full of machines. Every purchase increases visible Cash income; machine rarity tells the player how much bigger the next step is.
 
-## Research and design choice
-[Bottle Flip Inc Demo](https://store.steampowered.com/app/4966120/Bottle_Flip_Inc_Demo/) moves from a money-earning action to helper automation, abilities, and a skill tree. [Clicker Heroes](https://store.steampowered.com/app/363970/Clicker_Heroes/) also rewards idle progress. [PlinkIdle](https://store.steampowered.com/app/3684530/) shows how color and rarity can make stronger rewards easy to read. Pocket Grove uses **predictable purchases** for rarity tiers so players can plan for the next one; there are no random rolls or loot boxes.
+## Research and design
+[Bottle Flip Inc Demo](https://store.steampowered.com/app/4966120/Bottle_Flip_Inc_Demo/) uses a manual money action, more purchasable objects, helper automation, abilities, and an upgrade tree. [Clicker Heroes](https://store.steampowered.com/app/363970/Clicker_Heroes/) shows the appeal of keeping progress while idle. Pocket Arcade adapts that loop to arcade machines. Rarity is a fixed property of each shop item, displayed with a name, color, and payout; upgrades are predictable purchases, with no random rolls.
 
-## Core loop
-1. Click **Harvest** or press **Space anywhere** to earn $1. Better Tools raises each manual or automatic harvest to $2.
-2. Buy automatic earners: Flower ($10, +$0.30/s), Beehive ($60, +$1.50/s), Tree ($250, +$6/s). Each extra copy costs `ceil(base cost × 1.3^owned)`.
-3. Buy Better Tools ($80), Watering Can ($150, doubles Flowers), and Pollination ($400, doubles Beehives).
-4. Cash keeps earning while open and for up to 8 hours offline. Spending Cash never reverses a level.
+## Gameplay and rules
+- Click **Play** or press **Space anywhere** for $50. The Rare Power Glove makes each manual and automatic play worth $100.
+- Buy machines. Each copy costs `ceil(base price × 1.3^owned)` and produces Cash every second. Machines stay visible in the arcade as they are acquired.
+- At $5,000 total earned, receive a free Common Auto Player. Upgrade it through Rare ($5,000, 5 plays/sec), Epic ($60,000, 25 plays/sec), and Legendary ($700,000, 150 plays/sec). Its plays use the current manual play value.
+- Save locally; grant up to eight hours of offline Cash. Spending never reverses a level or unlock.
 
-## Levels and hands-free play
+| Item | Rarity | First price | Income or effect |
+| --- | --- | ---: | --- |
+| Coin Pusher | Common | $500 | +$30/sec |
+| Pinball Table | Rare | $7,500 | +$450/sec |
+| Claw Machine | Epic | $100,000 | +$6,000/sec |
+| Jackpot Cabinet | Legendary | $1,500,000 | +$90,000/sec |
+| Power Glove | Rare | $3,000 | Double play Cash |
+| Coin Booster | Common | $10,000 | Double Coin Pushers |
+| Multiball | Epic | $120,000 | Double Pinball Tables |
 
-| Level | Total Cash earned | Reward |
-| --- | ---: | --- |
-| 1 | Start | Harvest by hand |
-| 2 | $25 | First sprouts |
-| 3 | $100 | Beehive and **free Common 1★ Auto Harvester** |
-| 4 | $300 | Tree and larger garden patch |
-| 5 | $3,000 | Full grove; later cash goals double ($6,000, $12,000, …) |
+## Pace and presentation
+Levels start at $0, $1,000, $5,000, $50,000, and $500,000 lifetime Cash. The first machine takes ten plays; buying it starts idle income. Higher rarity machines cost about 13–15 times the prior tier and earn about 13–15 times as much, so their payback stays near 17 seconds. Use a dark arcade room, neon machine accents (Common green, Rare blue, Epic purple, Legendary gold), a readable Cash counter, green affordable arrows, and red unaffordable prices. Keep all purchases visible on a desktop screen.
 
-The Auto Harvester repeats the current harvest value, works offline, and displays its tier and stars. Upgrades are permanent:
-
-| Tier | Stars | Auto clicks/sec | Upgrade price |
-| --- | ---: | ---: | ---: |
-| Common | 1★ | 1 | Free at Level 3 |
-| Rare | 2★ | 2 | $60 |
-| Epic | 3★ | 5 | $250 |
-| Legendary | 4★ | 12 | $900 |
-
-Use common green, rare blue, epic purple, and legendary gold on the Auto Harvester card. Its visual pulse speeds up as the tier rises. Keep the Cash counter, Harvest button, goals, and purchases visible in one desktop screen; green arrows mean affordable, red prices mean more Cash is needed.
-
-## First playable and next steps
-The prototype has one currency, three producers, four auto tiers, three other upgrades, local save, sound and motion controls, and reset. Aim for Level 3 in about a minute and Level 5 in roughly 5–10 minutes; adjust after player feedback. Build with **TypeScript + Vite + CSS** and keep economy rules separate from the interface. Later, consider a distinct collectible resource and small ability tree only if they add meaningful choices.
+## Tech and next feedback
+TypeScript, Vite, CSS, localStorage, and no backend. Prototype scope: four machines, three permanent upgrades, a four-tier Auto Player, sound and motion controls. Ask players whether the first machine, free automation, and first Epic purchase feel timely before adding a skill tree or prestige.
