@@ -1,10 +1,17 @@
 import {
   PRODUCERS,
   UPGRADES,
+  AUTO_RARITIES,
+  MAX_AUTO_STARS,
+  canBuyAutoUpgrade,
   canBuyProducer,
   canBuyUpgrade,
   getProducerCost,
   getProductionPerSecond,
+  getAutoClicksPerSecond,
+  getAutoRarity,
+  getAutoUpgradeCost,
+  getLevel,
   getStage,
   getTapValue,
   type GameState,
@@ -14,6 +21,7 @@ import {
 
 export type UIActions = {
   onTap(): void;
+  onBuyAutoUpgrade(): void;
   onBuyProducer(id: ProducerId): void;
   onBuyUpgrade(id: UpgradeId): void;
   onToggleSound(): void;
@@ -23,6 +31,7 @@ export type UIActions = {
 
 type UIRefs = {
   bloom: HTMLElement;
+  level: HTMLElement;
   rate: HTMLElement;
   next: HTMLElement;
   progress: HTMLElement;
@@ -32,6 +41,7 @@ type UIRefs = {
   tapButton: HTMLButtonElement;
   tapValue: HTMLElement;
   producerCards: Record<ProducerId, ProducerCardRefs>;
+  autoCard: AutoCardRefs;
   upgradeCards: Record<UpgradeId, UpgradeCardRefs>;
   soundButton: HTMLButtonElement;
   motionButton: HTMLButtonElement;
@@ -45,8 +55,8 @@ type UIRefs = {
 
 const PRODUCER_ORDER: ProducerId[] = ['flower', 'beehive', 'tree'];
 const UPGRADE_ORDER: UpgradeId[] = ['betterTools', 'wateringCan', 'pollination'];
-const MILESTONES = [25, 100, 500, 6000];
-const GOAL_NAMES = ['First sprouts', 'Beehive unlock', 'New garden patch', 'Pocket Grove'];
+const MILESTONES = [25, 100, 300, 3000];
+const GOAL_NAMES = ['First sprouts', 'Free Auto Harvester', 'New garden patch', 'Full grove'];
 const PRODUCER_METADATA = Object.fromEntries(PRODUCERS.map((meta) => [meta.id, meta])) as Record<ProducerId, (typeof PRODUCERS)[number]>;
 const UPGRADE_METADATA = Object.fromEntries(UPGRADES.map((meta) => [meta.id, meta])) as Record<UpgradeId, (typeof UPGRADES)[number]>;
 
@@ -63,6 +73,16 @@ type UpgradeCardRefs = {
   card: HTMLElement;
   button: HTMLButtonElement;
   checkmark: HTMLElement;
+  cost: HTMLElement;
+  indicator: HTMLElement;
+};
+
+type AutoCardRefs = {
+  card: HTMLElement;
+  button: HTMLButtonElement;
+  name: HTMLElement;
+  stars: HTMLElement;
+  detail: HTMLElement;
   cost: HTMLElement;
   indicator: HTMLElement;
 };
@@ -87,7 +107,7 @@ function nextGoal(lifetime: number): { amount: number; previous: number; name: s
     if (lifetime < amount) return { amount, previous, name: GOAL_NAMES[index] };
     previous = amount;
   }
-  let amount = 12_000;
+  let amount = 6_000;
   while (amount <= lifetime) {
     previous = amount;
     amount *= 2;
@@ -176,7 +196,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   const tapValue = tapButton.querySelector('.tap-button-hint') as HTMLElement;
   const summary = element('section', 'summary-card');
   summary.setAttribute('aria-label', 'Garden progress');
-  summary.innerHTML = `<div class="bloom-row"><span class="bloom-icon">$</span><strong class="bloom-value">$0</strong><span class="bloom-label">Cash</span><span class="rate-value">$0 / sec</span></div><div class="goal-row"><span>Next: <strong class="next-value">First sprouts</strong></span><span class="progress-text">$0 / $25</span></div><div class="progress-track"><span class="progress-fill"></span></div>`;
+  summary.innerHTML = `<div class="bloom-row"><span class="bloom-icon">$</span><strong class="bloom-value">$0</strong><span class="bloom-label">Cash</span><span class="rate-value">$0 / sec</span></div><div class="goal-row"><span><b class="level-value">Lv 1</b> · Next: <strong class="next-value">First sprouts</strong></span><span class="progress-text">$0 / $25</span></div><div class="progress-track"><span class="progress-fill"></span></div>`;
   actionArea.append(tapButton, summary);
   left.appendChild(actionArea);
 
@@ -195,9 +215,10 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
     upgradeList.appendChild(refs.card);
     return [id, refs];
   })) as Record<UpgradeId, UpgradeCardRefs>;
+  const autoCard = makeAutoCard(actions);
   const upgradesHeading = element('div', 'subsection-heading');
   upgradesHeading.textContent = 'Upgrades';
-  shop.append(producerList, upgradesHeading, upgradeList);
+  shop.append(producerList, autoCard.card, upgradesHeading, upgradeList);
 
   const footer = element('footer', 'settings');
   const soundButton = element('button', 'setting-button');
@@ -226,6 +247,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   root.appendChild(app);
   return {
     bloom: summary.querySelector('.bloom-value') as HTMLElement,
+    level: summary.querySelector('.level-value') as HTMLElement,
     rate: summary.querySelector('.rate-value') as HTMLElement,
     next: summary.querySelector('.next-value') as HTMLElement,
     progress: summary.querySelector('.progress-text') as HTMLElement,
@@ -235,6 +257,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
     tapButton,
     tapValue,
     producerCards,
+    autoCard,
     upgradeCards,
     soundButton,
     motionButton,
@@ -284,6 +307,24 @@ function makeUpgradeCard(id: UpgradeId, actions: UIActions): UpgradeCardRefs {
   };
 }
 
+function makeAutoCard(actions: UIActions): AutoCardRefs {
+  const card = element('article', 'shop-card auto-card');
+  const button = element('button', 'shop-buy');
+  button.type = 'button';
+  button.addEventListener('click', () => actions.onBuyAutoUpgrade());
+  button.innerHTML = `<span class="card-icon icon-auto" aria-hidden="true">↻</span><span class="card-body"><strong class="auto-name">Auto Harvester</strong><small class="auto-stars">☆☆☆☆</small><small class="auto-detail">Free at Level 3</small></span><span class="card-side"><span class="card-cost"></span><span class="purchase-indicator" aria-hidden="true"></span></span>`;
+  card.appendChild(button);
+  return {
+    card,
+    button,
+    name: button.querySelector('.auto-name') as HTMLElement,
+    stars: button.querySelector('.auto-stars') as HTMLElement,
+    detail: button.querySelector('.auto-detail') as HTMLElement,
+    cost: button.querySelector('.card-cost') as HTMLElement,
+    indicator: button.querySelector('.purchase-indicator') as HTMLElement,
+  };
+}
+
 function updateProducerCard(refs: ProducerCardRefs, id: ProducerId, state: GameState): void {
   const meta = PRODUCER_METADATA[id];
   const owned = state.owned[id] ?? 0;
@@ -315,9 +356,45 @@ function updateUpgradeCard(refs: UpgradeCardRefs, id: UpgradeId, state: GameStat
   refs.indicator.textContent = affordable ? '↑' : '';
 }
 
+function updateAutoCard(refs: AutoCardRefs, state: GameState): void {
+  const stars = Math.min(MAX_AUTO_STARS, state.autoHarvesterStars);
+  const locked = stars === 0;
+  const maxed = stars === MAX_AUTO_STARS;
+  const rarity = getAutoRarity(state);
+  const nextRarity = AUTO_RARITIES[Math.min(MAX_AUTO_STARS, stars + 1)];
+  const affordable = canBuyAutoUpgrade(state);
+  const cost = getAutoUpgradeCost(state);
+  const clicksPerSecond = getAutoClicksPerSecond(state);
+  const nextClicksPerSecond = getAutoClicksPerSecond({ ...state, autoHarvesterStars: Math.min(MAX_AUTO_STARS, stars + 1) });
+  refs.card.classList.toggle('is-locked', locked);
+  refs.card.classList.toggle('is-affordable', affordable);
+  refs.card.classList.toggle('is-unaffordable', !locked && !maxed && !affordable);
+  refs.card.classList.toggle('rarity-common', rarity === 'Common');
+  refs.card.classList.toggle('rarity-rare', rarity === 'Rare');
+  refs.card.classList.toggle('rarity-epic', rarity === 'Epic');
+  refs.card.classList.toggle('rarity-legendary', rarity === 'Legendary');
+  refs.button.disabled = locked || maxed || !affordable;
+  refs.button.setAttribute('aria-label', locked
+    ? 'Auto Harvester unlocks free at Level 3, after earning $100 total'
+    : maxed
+      ? 'Legendary Auto Harvester, four stars, maximum tier'
+      : affordable
+        ? `Upgrade Auto Harvester to ${nextRarity}, ${stars + 1} stars for ${formatCash(cost)}`
+        : `Not enough Cash for ${nextRarity} Auto Harvester, costs ${formatCash(cost)}`);
+  refs.name.textContent = 'Auto Harvester';
+  refs.stars.textContent = `${locked ? 'Locked' : rarity} · ${'★'.repeat(stars)}${'☆'.repeat(MAX_AUTO_STARS - stars)}`;
+  refs.detail.textContent = locked
+    ? 'Free at Level 3 · $100 earned'
+    : maxed
+      ? `${clicksPerSecond} auto clicks/sec · max tier`
+      : `${clicksPerSecond}/sec → ${nextRarity} ${nextClicksPerSecond}/sec`;
+  refs.cost.textContent = locked ? 'Free later' : maxed ? 'MAX' : formatCash(cost);
+  refs.indicator.textContent = affordable ? '↑' : '';
+}
+
 export function createUI(root: HTMLElement, actions: UIActions): { render(state: GameState): void; showOffline(earned: number, elapsedMs: number): void } {
   const refs = buildRefs(root, actions);
-  let previousStage = -1;
+  let previousLevel = -1;
   let toastTimeout: number | undefined;
 
   function showToast(message: string): void {
@@ -331,10 +408,12 @@ export function createUI(root: HTMLElement, actions: UIActions): { render(state:
     const production = getProductionPerSecond(state);
     const tap = getTapValue(state);
     const stage = getStage(state);
+    const level = getLevel(state);
     const goal = nextGoal(state.lifetimeBloom);
     const progress = Math.min(100, Math.max(0, ((state.lifetimeBloom - goal.previous) / (goal.amount - goal.previous)) * 100));
 
     refs.bloom.textContent = formatCash(state.bloom);
+    refs.level.textContent = level === 5 ? 'Lv 5 · Grove' : `Lv ${level}`;
     refs.rate.textContent = `${formatCash(production)} / sec`;
     refs.next.textContent = goal.name;
     refs.progress.textContent = `${formatCash(state.lifetimeBloom)} / ${formatCash(goal.amount)} earned`;
@@ -345,10 +424,13 @@ export function createUI(root: HTMLElement, actions: UIActions): { render(state:
     refs.island.dataset.flowerCount = String(Math.min(3, state.owned.flower ?? 0));
     refs.island.dataset.beehiveCount = String(Math.min(3, state.owned.beehive ?? 0));
     refs.island.dataset.treeCount = String(Math.min(3, state.owned.tree ?? 0));
+    refs.island.classList.toggle('is-auto', state.autoHarvesterStars > 0);
+    refs.island.dataset.autoStars = String(state.autoHarvesterStars);
     refs.tapButton.classList.toggle('is-ready', state.bloom >= 1);
     // Shop cards are built once. Updating their existing nodes keeps keyboard
     // focus and screen-reader position stable while the game ticks.
     for (const id of PRODUCER_ORDER) updateProducerCard(refs.producerCards[id], id, state);
+    updateAutoCard(refs.autoCard, state);
     for (const id of UPGRADE_ORDER) updateUpgradeCard(refs.upgradeCards[id], id, state);
 
     refs.soundButton.innerHTML = state.soundEnabled ? '<span>◖</span> Sound on' : '<span>◌</span> Sound off';
@@ -360,13 +442,13 @@ export function createUI(root: HTMLElement, actions: UIActions): { render(state:
     refs.resetButton.innerHTML = '<span>↺</span> Reset save';
 
     document.documentElement.classList.toggle('reduced-motion', state.reducedMotion);
-    if (previousStage >= 0 && stage > previousStage) {
-      refs.milestoneTitle.textContent = stage === 3 ? 'The grove is awake' : 'A new patch is growing';
-      refs.milestoneText.textContent = stageDescription(stage);
+    if (previousLevel >= 0 && level > previousLevel) {
+      refs.milestoneTitle.textContent = level === 3 ? 'Auto Harvester unlocked!' : level === 5 ? 'Full grove reached!' : 'Level up!';
+      refs.milestoneText.textContent = level === 3 ? 'Your free 1★ helper now clicks for you.' : stageDescription(stage);
       refs.milestone.classList.add('is-visible');
       window.setTimeout(() => refs.milestone.classList.remove('is-visible'), 4200);
     }
-    previousStage = stage;
+    previousLevel = level;
   }
 
   function showOffline(earned: number, elapsedMs: number): void {

@@ -209,6 +209,25 @@ button:focus-visible, a:focus-visible { outline: 3px solid #c58d3d; outline-offs
 .subsection-heading { margin: 10px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: none; }
 .settings { margin-top: auto; padding-top: 7px; }
 .setting-button, .reset-button { min-height: 29px; padding: 5px 8px; }
+.auto-card { margin-top: 5px; background: #f7faf5; }
+.auto-card .shop-buy { min-height: 68px; }
+.auto-card .card-body { gap: 1px; }
+.auto-card .auto-stars { font-size: 10px; font-weight: 800; letter-spacing: .03em; }
+.auto-card .auto-detail { color: var(--ink-soft); font-size: 9px; }
+.auto-card.rarity-common { border-color: #a9c1a8; }
+.auto-card.rarity-rare { border-color: #8cb7d7; background: #f3f8fc; }
+.auto-card.rarity-epic { border-color: #ad89d3; background: #f8f3fd; }
+.auto-card.rarity-legendary { border-color: #d8ab4a; background: #fff8e8; box-shadow: inset 0 0 0 1px rgba(216, 171, 74, .28); }
+.rarity-common .auto-stars { color: #5c8461; }
+.rarity-rare .auto-stars, .rarity-rare .icon-auto { color: #3d79ad; }
+.rarity-epic .auto-stars, .rarity-epic .icon-auto { color: #8252b9; }
+.rarity-legendary .auto-stars, .rarity-legendary .icon-auto { color: #b3831b; }
+.rarity-legendary .card-cost { color: #b3831b; font-weight: 700; }
+.garden-scene.is-auto .seed { animation: auto-harvest 1s ease-in-out infinite; }
+.garden-scene[data-auto-stars="2"] .seed { animation-duration: .7s; }
+.garden-scene[data-auto-stars="3"] .seed { animation-duration: .5s; }
+.garden-scene[data-auto-stars="4"] .seed { animation-duration: .35s; }
+.garden-scene.is-auto .garden-label-text::after { content: ' · Auto on'; color: #3d8c55; font-weight: 700; }
 
 @media (max-width: 950px) and (min-width: 761px) {
   .action-area { grid-template-columns: 1fr; gap: 7px; }
@@ -227,6 +246,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #c58d3d; outline-offs
 @keyframes pulse { 50% { opacity: .35; box-shadow: 0 0 0 7px rgba(130, 174, 131, 0); } }
 @keyframes button-shine { to { transform: translateX(100%); } }
 @keyframes bee-drift { 0%, 100% { margin-right: 0; } 50% { margin-right: 18px; } }
+@keyframes auto-harvest { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 
 html.reduced-motion *, html.reduced-motion *::before, html.reduced-motion *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 @media (prefers-reduced-motion: reduce) {

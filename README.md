@@ -1,6 +1,6 @@
 # Pocket Grove
 
-A small, cozy incremental game prototype. Harvest for Cash, buy automatic earners, and restore a floating garden. Press Space anywhere to harvest. The design is in [PLAN.md](PLAN.md).
+A small, cozy incremental game prototype. Harvest for Cash, buy automatic earners, and restore a floating garden. Press Space anywhere to harvest. Level 3 grants a free Auto Harvester, which can grow from Common to Legendary. The design is in [PLAN.md](PLAN.md).
 
 ## Play locally
 

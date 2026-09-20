@@ -1,9 +1,11 @@
 import './style.css';
 import {
   advanceTime,
+  buyAutoUpgrade,
   buyProducer,
   buyUpgrade,
   createInitialState,
+  getLevel,
   getStage,
   tap,
   type GameState,
@@ -43,14 +45,16 @@ function sound(frequency: number, duration = 0.075): void {
 function apply(next: GameState, tone: number): void {
   if (next === state) return;
   const previousStage = getStage(state);
+  const previousLevel = getLevel(state);
   state = next;
   ui.render(state);
   saveGame(state);
-  sound(getStage(state) > previousStage ? 740 : tone);
+  sound(getStage(state) > previousStage || getLevel(state) > previousLevel ? 740 : tone);
 }
 
 const ui = createUI(root, {
   onTap: () => apply(tap(state), 440),
+  onBuyAutoUpgrade: () => apply(buyAutoUpgrade(state), 700),
   onBuyProducer: (id: ProducerId) => apply(buyProducer(state, id), 550),
   onBuyUpgrade: (id: UpgradeId) => apply(buyUpgrade(state, id), 620),
   onToggleSound: () => {
