@@ -45,7 +45,8 @@ type UIRefs = {
 
 const PRODUCER_ORDER: ProducerId[] = ['flower', 'beehive', 'tree'];
 const UPGRADE_ORDER: UpgradeId[] = ['betterTools', 'wateringCan', 'pollination'];
-const MILESTONES = [100, 500, 6000];
+const MILESTONES = [25, 100, 500, 6000];
+const GOAL_NAMES = ['First sprouts', 'Beehive unlock', 'New garden patch', 'Pocket Grove'];
 const PRODUCER_METADATA = Object.fromEntries(PRODUCERS.map((meta) => [meta.id, meta])) as Record<ProducerId, (typeof PRODUCERS)[number]>;
 const UPGRADE_METADATA = Object.fromEntries(UPGRADES.map((meta) => [meta.id, meta])) as Record<UpgradeId, (typeof UPGRADES)[number]>;
 
@@ -68,10 +69,30 @@ type UpgradeCardRefs = {
 
 function formatNumber(value: number): string {
   if (!Number.isFinite(value)) return '0';
+  if (value > 0 && value < 1) return value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
   if (value < 10) return value.toFixed(1).replace(/\.0$/, '');
   if (value < 1000) return Math.floor(value).toLocaleString();
   if (value < 1_000_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}k`;
   return `${(value / 1_000_000).toFixed(1)}m`;
+}
+
+function formatCash(value: number): string {
+  return `$${formatNumber(value)}`;
+}
+
+function nextGoal(lifetime: number): { amount: number; previous: number; name: string } {
+  let previous = 0;
+  for (let index = 0; index < MILESTONES.length; index++) {
+    const amount = MILESTONES[index];
+    if (lifetime < amount) return { amount, previous, name: GOAL_NAMES[index] };
+    previous = amount;
+  }
+  let amount = 12_000;
+  while (amount <= lifetime) {
+    previous = amount;
+    amount *= 2;
+  }
+  return { amount, previous, name: 'Next cash goal' };
 }
 
 function formatDuration(ms: number): string {
@@ -95,10 +116,6 @@ function createIcon(kind: string): string {
   if (kind === 'betterTools') return '✦';
   if (kind === 'wateringCan') return '⌁';
   return '✧';
-}
-
-function stageName(stage: number): string {
-  return ['A sleeping seed', 'First sprouts', 'A living patch', 'Pocket Grove'][Math.min(3, Math.max(0, stage))] ?? 'A sleeping seed';
 }
 
 function stageDescription(stage: number): string {
@@ -144,7 +161,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   main.id = 'main';
   const left = element('section', 'garden-panel');
   const title = element('p', 'instruction');
-  title.textContent = 'Tend the seed for Bloom. Buy plants to earn Bloom automatically, then upgrade them to grow faster.';
+  title.textContent = 'Press Space anywhere or click Harvest to earn Cash. Buy plants for automatic income, then upgrade them.';
   const sceneWrap = element('div', 'scene-wrap');
   sceneWrap.appendChild(makeGardenScene());
   const island = sceneWrap.querySelector('.garden-scene') as HTMLElement;
@@ -154,12 +171,12 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   const actionArea = element('div', 'action-area');
   const tapButton = element('button', 'tap-button');
   tapButton.type = 'button';
-  tapButton.innerHTML = `<span class="tap-button-shine" aria-hidden="true"></span><span class="tap-button-icon" aria-hidden="true">✦</span><span class="tap-button-label">Tend the seed</span><span class="tap-button-hint">+1 Bloom per tend</span>`;
+  tapButton.innerHTML = `<span class="tap-button-shine" aria-hidden="true"></span><span class="tap-button-icon" aria-hidden="true">✦</span><span class="tap-button-label">Harvest</span><span class="tap-button-hint">+$1 per harvest</span>`;
   tapButton.addEventListener('click', () => actions.onTap());
   const tapValue = tapButton.querySelector('.tap-button-hint') as HTMLElement;
   const summary = element('section', 'summary-card');
   summary.setAttribute('aria-label', 'Garden progress');
-  summary.innerHTML = `<div class="bloom-row"><span class="bloom-icon">✿</span><strong class="bloom-value">0</strong><span class="bloom-label">Bloom</span><span class="rate-value">0 / sec</span></div><div class="goal-row"><span>Next: <strong class="next-value">First sprouts</strong></span><span class="progress-text">0 / 100</span></div><div class="progress-track"><span class="progress-fill"></span></div>`;
+  summary.innerHTML = `<div class="bloom-row"><span class="bloom-icon">$</span><strong class="bloom-value">$0</strong><span class="bloom-label">Cash</span><span class="rate-value">$0 / sec</span></div><div class="goal-row"><span>Next: <strong class="next-value">First sprouts</strong></span><span class="progress-text">$0 / $25</span></div><div class="progress-track"><span class="progress-fill"></span></div>`;
   actionArea.append(tapButton, summary);
   left.appendChild(actionArea);
 
@@ -277,10 +294,10 @@ function updateProducerCard(refs: ProducerCardRefs, id: ProducerId, state: GameS
   refs.card.classList.toggle('is-affordable', affordable);
   refs.card.classList.toggle('is-unaffordable', !locked && !affordable);
   refs.button.disabled = locked || !affordable;
-  refs.button.setAttribute('aria-label', locked ? `${meta.name} unlocks at ${formatNumber(meta.unlockAt)} lifetime Bloom` : affordable ? `Buy ${meta.name} for ${formatNumber(cost)} Bloom` : `Not enough Bloom for ${meta.name}, costs ${formatNumber(cost)}`);
+  refs.button.setAttribute('aria-label', locked ? `${meta.name} unlocks after earning ${formatCash(meta.unlockAt)} total` : affordable ? `Buy ${meta.name} for ${formatCash(cost)}` : `Not enough Cash for ${meta.name}, costs ${formatCash(cost)}`);
   refs.count.textContent = String(owned);
-  refs.detail.textContent = locked ? `Unlocks at ${formatNumber(meta.unlockAt)} lifetime` : `+${formatNumber(meta.rate)} Bloom / sec`;
-  refs.cost.textContent = locked ? 'Locked' : `${formatNumber(cost)} Bloom`;
+  refs.detail.textContent = locked ? `Unlocks at ${formatCash(meta.unlockAt)} earned` : `+${formatCash(meta.rate)} / sec`;
+  refs.cost.textContent = locked ? 'Locked' : formatCash(cost);
   refs.indicator.textContent = affordable ? '↑' : '';
 }
 
@@ -292,9 +309,9 @@ function updateUpgradeCard(refs: UpgradeCardRefs, id: UpgradeId, state: GameStat
   refs.card.classList.toggle('is-affordable', affordable);
   refs.card.classList.toggle('is-unaffordable', !purchased && !affordable);
   refs.button.disabled = purchased || !affordable;
-  refs.button.setAttribute('aria-label', purchased ? `${meta.name} purchased` : affordable ? `Buy ${meta.name} for ${formatNumber(meta.cost)} Bloom` : `Not enough Bloom for ${meta.name}, costs ${formatNumber(meta.cost)}`);
+  refs.button.setAttribute('aria-label', purchased ? `${meta.name} purchased` : affordable ? `Buy ${meta.name} for ${formatCash(meta.cost)}` : `Not enough Cash for ${meta.name}, costs ${formatCash(meta.cost)}`);
   refs.checkmark.textContent = purchased ? '✓' : '';
-  refs.cost.textContent = purchased ? 'Owned' : `${formatNumber(meta.cost)} Bloom`;
+  refs.cost.textContent = purchased ? 'Owned' : formatCash(meta.cost);
   refs.indicator.textContent = affordable ? '↑' : '';
 }
 
@@ -314,17 +331,15 @@ export function createUI(root: HTMLElement, actions: UIActions): { render(state:
     const production = getProductionPerSecond(state);
     const tap = getTapValue(state);
     const stage = getStage(state);
-    const nextMilestone = MILESTONES.find((milestone) => state.lifetimeBloom < milestone);
-    const previousMilestone = MILESTONES[MILESTONES.indexOf(nextMilestone ?? 6000) - 1] ?? 0;
-    const target = nextMilestone ?? Math.max(6000, state.lifetimeBloom);
-    const progress = nextMilestone ? Math.min(100, Math.max(0, ((state.lifetimeBloom - previousMilestone) / (target - previousMilestone)) * 100)) : 100;
+    const goal = nextGoal(state.lifetimeBloom);
+    const progress = Math.min(100, Math.max(0, ((state.lifetimeBloom - goal.previous) / (goal.amount - goal.previous)) * 100));
 
-    refs.bloom.textContent = formatNumber(state.bloom);
-    refs.rate.textContent = `${formatNumber(production)} / sec`;
-    refs.next.textContent = nextMilestone ? stageName(MILESTONES.indexOf(nextMilestone) + 1) : 'Grove complete';
-    refs.progress.textContent = nextMilestone ? `${formatNumber(state.lifetimeBloom)} / ${formatNumber(nextMilestone)} lifetime` : 'Complete';
+    refs.bloom.textContent = formatCash(state.bloom);
+    refs.rate.textContent = `${formatCash(production)} / sec`;
+    refs.next.textContent = goal.name;
+    refs.progress.textContent = `${formatCash(state.lifetimeBloom)} / ${formatCash(goal.amount)} earned`;
     refs.progressFill.style.width = `${progress}%`;
-    refs.tapValue.textContent = `+${formatNumber(tap)} Bloom / tend`;
+    refs.tapValue.textContent = `+${formatCash(tap)} per harvest`;
     refs.island.dataset.stage = String(stage);
     refs.islandGlow.dataset.stage = String(stage);
     refs.island.dataset.flowerCount = String(Math.min(3, state.owned.flower ?? 0));
@@ -356,7 +371,7 @@ export function createUI(root: HTMLElement, actions: UIActions): { render(state:
 
   function showOffline(earned: number, elapsedMs: number): void {
     if (earned <= 0 || elapsedMs < 1000) return;
-    showToast(`While you were away · +${formatNumber(earned)} Bloom over ${formatDuration(elapsedMs)}`);
+    showToast(`While you were away · +${formatCash(earned)} over ${formatDuration(elapsedMs)}`);
   }
 
   return { render, showOffline };

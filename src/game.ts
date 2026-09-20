@@ -36,7 +36,7 @@ export const PRODUCERS: readonly ProducerMeta[] = [
     baseCost: 10,
     rate: 0.08,
     unlockAt: 0,
-    description: "A cheerful bloom that makes 0.08 Bloom per second.",
+    description: "Flowers sell for $0.08 per second.",
   },
   {
     id: "beehive",
@@ -44,7 +44,7 @@ export const PRODUCERS: readonly ProducerMeta[] = [
     baseCost: 60,
     rate: 0.5,
     unlockAt: 100,
-    description: "Busy bees make 0.5 Bloom per second.",
+    description: "Busy bees earn $0.50 per second.",
   },
   {
     id: "tree",
@@ -52,7 +52,7 @@ export const PRODUCERS: readonly ProducerMeta[] = [
     baseCost: 250,
     rate: 2,
     unlockAt: 500,
-    description: "A sturdy tree makes 2 Bloom per second.",
+    description: "A sturdy tree earns $2 per second.",
   },
 ] as const;
 
@@ -61,19 +61,19 @@ export const UPGRADES: readonly UpgradeMeta[] = [
     id: "betterTools",
     name: "Better Tools",
     cost: 200,
-    description: "Tending the seed gives +1 extra Bloom.",
+    description: "Each harvest earns $1 extra.",
   },
   {
     id: "wateringCan",
     name: "Watering Can",
     cost: 300,
-    description: "Doubles the Bloom made by every Flower.",
+    description: "Doubles cash earned by every Flower.",
   },
   {
     id: "pollination",
     name: "Pollination",
     cost: 800,
-    description: "Doubles the Bloom made by every Beehive.",
+    description: "Doubles cash earned by every Beehive.",
   },
 ] as const;
 
@@ -314,6 +314,6 @@ export function getStage(state: GameState): 0 | 1 | 2 | 3 {
   const lifetimeBloom = nonNegativeNumber(state?.lifetimeBloom);
   if (lifetimeBloom >= 6000) return 3;
   if (lifetimeBloom >= 500) return 2;
-  if (lifetimeBloom >= 100) return 1;
+  if (lifetimeBloom >= 25) return 1;
   return 0;
 }

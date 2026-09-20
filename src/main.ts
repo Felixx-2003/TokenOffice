@@ -12,6 +12,7 @@ import {
 } from './game';
 import { clearGame, loadGame, saveGame } from './storage';
 import { createUI } from './ui';
+import { installHarvestShortcut } from './controls';
 
 const root = document.querySelector<HTMLElement>('#app');
 if (!root) throw new Error('Missing #app element');
@@ -71,6 +72,8 @@ const ui = createUI(root, {
     saveGame(state);
   },
 });
+
+installHarvestShortcut(window, () => apply(tap(state), 440));
 
 ui.render(state);
 if (initialAdvance.earned > 0 && initialAdvance.elapsedMs >= 30_000) {

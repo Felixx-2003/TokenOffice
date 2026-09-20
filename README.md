@@ -1,6 +1,6 @@
 # Pocket Grove
 
-A small, cozy incremental game prototype. Tend a seed, buy producers, and restore a floating garden. The design is in [PLAN.md](PLAN.md).
+A small, cozy incremental game prototype. Harvest for Cash, buy automatic earners, and restore a floating garden. Press Space anywhere to harvest. The design is in [PLAN.md](PLAN.md).
 
 ## Play locally
 
