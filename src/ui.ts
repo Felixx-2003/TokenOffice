@@ -27,13 +27,10 @@ type UIRefs = {
   next: HTMLElement;
   progress: HTMLElement;
   progressFill: HTMLElement;
-  stageLabel: HTMLElement;
   island: HTMLElement;
   islandGlow: HTMLElement;
   tapButton: HTMLButtonElement;
   tapValue: HTMLElement;
-  producerList: HTMLElement;
-  upgradeList: HTMLElement;
   producerCards: Record<ProducerId, ProducerCardRefs>;
   upgradeCards: Record<UpgradeId, UpgradeCardRefs>;
   soundButton: HTMLButtonElement;
@@ -58,6 +55,7 @@ type ProducerCardRefs = {
   count: HTMLElement;
   detail: HTMLElement;
   cost: HTMLElement;
+  indicator: HTMLElement;
 };
 
 type UpgradeCardRefs = {
@@ -65,6 +63,7 @@ type UpgradeCardRefs = {
   button: HTMLButtonElement;
   checkmark: HTMLElement;
   cost: HTMLElement;
+  indicator: HTMLElement;
 };
 
 function formatNumber(value: number): string {
@@ -139,13 +138,13 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
 
   const app = element('div', 'app');
   const topbar = element('header', 'topbar');
-  topbar.innerHTML = `<a class="brand" href="#main" aria-label="Pocket Grove home"><span class="brand-mark">✿</span><span>Pocket <b>Grove</b></span></a><span class="save-note"><span class="save-dot"></span>Progress saves locally</span>`;
+  topbar.innerHTML = `<a class="brand" href="#main" aria-label="Pocket Grove home"><span class="brand-mark">✿</span><span>Pocket <b>Grove</b></span></a>`;
 
   const main = element('main', 'main-layout');
   main.id = 'main';
   const left = element('section', 'garden-panel');
-  const title = element('div', 'hero-copy');
-  title.innerHTML = `<p class="eyebrow">A tiny world, tended by you</p><h1>Make room for <em>wonder.</em></h1><p class="lede">Start with one small seed. Every touch brings this floating garden a little closer to home.</p>`;
+  const title = element('p', 'instruction');
+  title.textContent = 'Tend the seed for Bloom. Buy plants to earn Bloom automatically, then upgrade them to grow faster.';
   const sceneWrap = element('div', 'scene-wrap');
   sceneWrap.appendChild(makeGardenScene());
   const island = sceneWrap.querySelector('.garden-scene') as HTMLElement;
@@ -155,18 +154,18 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   const actionArea = element('div', 'action-area');
   const tapButton = element('button', 'tap-button');
   tapButton.type = 'button';
-  tapButton.innerHTML = `<span class="tap-button-shine" aria-hidden="true"></span><span class="tap-button-icon" aria-hidden="true">✦</span><span class="tap-button-label">Tend the seed</span><span class="tap-button-hint">Press Space or Enter</span>`;
+  tapButton.innerHTML = `<span class="tap-button-shine" aria-hidden="true"></span><span class="tap-button-icon" aria-hidden="true">✦</span><span class="tap-button-label">Tend the seed</span><span class="tap-button-hint">+1 Bloom per tend</span>`;
   tapButton.addEventListener('click', () => actions.onTap());
-  const tapValue = element('span', 'tap-value');
-  actionArea.append(tapButton, tapValue);
+  const tapValue = tapButton.querySelector('.tap-button-hint') as HTMLElement;
+  const summary = element('section', 'summary-card');
+  summary.setAttribute('aria-label', 'Garden progress');
+  summary.innerHTML = `<div class="bloom-row"><span class="bloom-icon">✿</span><strong class="bloom-value">0</strong><span class="bloom-label">Bloom</span><span class="rate-value">0 / sec</span></div><div class="goal-row"><span>Next: <strong class="next-value">First sprouts</strong></span><span class="progress-text">0 / 100</span></div><div class="progress-track"><span class="progress-fill"></span></div>`;
+  actionArea.append(tapButton, summary);
   left.appendChild(actionArea);
 
   const right = element('aside', 'control-panel');
-  const summary = element('section', 'summary-card');
-  summary.innerHTML = `<div class="summary-heading"><span class="summary-kicker">YOUR GARDEN</span><span class="live-pill"><i></i>growing</span></div><div class="bloom-row"><span class="bloom-icon">✿</span><strong class="bloom-value">0</strong><span class="bloom-label">Bloom</span></div><div class="rate-row"><span class="rate-value">0 / sec</span><span class="rate-separator">·</span><span class="lifetime-value">0 lifetime</span></div><div class="milestone-copy"><span class="next-label">NEXT MILESTONE</span><strong class="next-value">First sprouts</strong><span class="next-detail">100 lifetime Bloom</span></div><div class="progress-track"><span class="progress-fill"></span></div><div class="progress-caption"><span class="progress-text">0 / 100 Bloom</span><span class="stage-label">A sleeping seed</span></div>`;
-
   const shop = element('section', 'shop-section');
-  shop.innerHTML = `<div class="section-heading"><div><span class="section-kicker">NURTURE</span><h2>Ways to grow</h2></div><span class="section-note">The grove remembers</span></div>`;
+  shop.innerHTML = `<div class="section-heading"><h2>Shop</h2></div>`;
   const producerList = element('div', 'card-list');
   const upgradeList = element('div', 'card-list upgrades-list');
   const producerCards = Object.fromEntries(PRODUCER_ORDER.map((id) => {
@@ -180,7 +179,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
     return [id, refs];
   })) as Record<UpgradeId, UpgradeCardRefs>;
   const upgradesHeading = element('div', 'subsection-heading');
-  upgradesHeading.innerHTML = `<span>Little improvements</span><span class="line"></span>`;
+  upgradesHeading.textContent = 'Upgrades';
   shop.append(producerList, upgradesHeading, upgradeList);
 
   const footer = element('footer', 'settings');
@@ -192,7 +191,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   motionButton.addEventListener('click', () => actions.onToggleReducedMotion());
   resetButton.addEventListener('click', () => actions.onReset());
   footer.append(soundButton, motionButton, resetButton);
-  right.append(summary, shop, footer);
+  right.append(shop, footer);
 
   const toast = element('div', 'toast');
   toast.setAttribute('role', 'status');
@@ -214,13 +213,10 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
     next: summary.querySelector('.next-value') as HTMLElement,
     progress: summary.querySelector('.progress-text') as HTMLElement,
     progressFill: summary.querySelector('.progress-fill') as HTMLElement,
-    stageLabel: summary.querySelector('.stage-label') as HTMLElement,
     island,
     islandGlow,
     tapButton,
     tapValue,
-    producerList,
-    upgradeList,
     producerCards,
     upgradeCards,
     soundButton,
@@ -241,7 +237,7 @@ function makeProducerCard(id: ProducerId, actions: UIActions): ProducerCardRefs 
   button.type = 'button';
   button.dataset.shopId = `producer-${id}`;
   button.addEventListener('click', () => actions.onBuyProducer(id));
-  button.innerHTML = `<span class="card-icon icon-${id}">${createIcon(id)}</span><span class="card-body"><strong>${meta.name}</strong><span>${meta.description}</span><small class="card-detail"></small></span><span class="card-side"><b class="card-count">0</b><span class="card-cost"></span></span></button>`;
+  button.innerHTML = `<span class="card-icon icon-${id}">${createIcon(id)}</span><span class="card-body"><strong>${meta.name}</strong><small class="card-detail"></small></span><span class="card-side"><b class="card-count">0</b><span class="card-cost"></span><span class="purchase-indicator" aria-hidden="true"></span></span>`;
   card.appendChild(button);
   return {
     card,
@@ -249,6 +245,7 @@ function makeProducerCard(id: ProducerId, actions: UIActions): ProducerCardRefs 
     count: button.querySelector('.card-count') as HTMLElement,
     detail: button.querySelector('.card-detail') as HTMLElement,
     cost: button.querySelector('.card-cost') as HTMLElement,
+    indicator: button.querySelector('.purchase-indicator') as HTMLElement,
   };
 }
 
@@ -259,13 +256,14 @@ function makeUpgradeCard(id: UpgradeId, actions: UIActions): UpgradeCardRefs {
   button.type = 'button';
   button.dataset.shopId = `upgrade-${id}`;
   button.addEventListener('click', () => actions.onBuyUpgrade(id));
-  button.innerHTML = `<span class="card-icon icon-upgrade">${createIcon(id)}</span><span class="card-body"><strong>${meta.name}</strong><span>${meta.description}</span></span><span class="card-side"><b class="checkmark">✦</b><span class="card-cost"></span></span></button>`;
+  button.innerHTML = `<span class="card-icon icon-upgrade">${createIcon(id)}</span><span class="card-body"><strong>${meta.name}</strong><span>${meta.description}</span></span><span class="card-side"><b class="checkmark"></b><span class="card-cost"></span><span class="purchase-indicator" aria-hidden="true"></span></span>`;
   card.appendChild(button);
   return {
     card,
     button,
     checkmark: button.querySelector('.checkmark') as HTMLElement,
     cost: button.querySelector('.card-cost') as HTMLElement,
+    indicator: button.querySelector('.purchase-indicator') as HTMLElement,
   };
 }
 
@@ -277,11 +275,13 @@ function updateProducerCard(refs: ProducerCardRefs, id: ProducerId, state: GameS
   const locked = state.lifetimeBloom < meta.unlockAt;
   refs.card.classList.toggle('is-locked', locked);
   refs.card.classList.toggle('is-affordable', affordable);
+  refs.card.classList.toggle('is-unaffordable', !locked && !affordable);
   refs.button.disabled = locked || !affordable;
-  refs.button.setAttribute('aria-label', locked ? `${meta.name} locked` : `Buy ${meta.name} for ${formatNumber(cost)} Bloom`);
+  refs.button.setAttribute('aria-label', locked ? `${meta.name} unlocks at ${formatNumber(meta.unlockAt)} lifetime Bloom` : affordable ? `Buy ${meta.name} for ${formatNumber(cost)} Bloom` : `Not enough Bloom for ${meta.name}, costs ${formatNumber(cost)}`);
   refs.count.textContent = String(owned);
-  refs.detail.textContent = locked ? `Unlocks at ${formatNumber(meta.unlockAt)} lifetime Bloom` : `+${formatNumber(meta.rate)} Bloom / sec`;
-  refs.cost.textContent = locked ? 'locked' : `${formatNumber(cost)} ✿`;
+  refs.detail.textContent = locked ? `Unlocks at ${formatNumber(meta.unlockAt)} lifetime` : `+${formatNumber(meta.rate)} Bloom / sec`;
+  refs.cost.textContent = locked ? 'Locked' : `${formatNumber(cost)} Bloom`;
+  refs.indicator.textContent = affordable ? '↑' : '';
 }
 
 function updateUpgradeCard(refs: UpgradeCardRefs, id: UpgradeId, state: GameState): void {
@@ -290,10 +290,12 @@ function updateUpgradeCard(refs: UpgradeCardRefs, id: UpgradeId, state: GameStat
   const affordable = !purchased && canBuyUpgrade(state, id);
   refs.card.classList.toggle('is-owned', purchased);
   refs.card.classList.toggle('is-affordable', affordable);
+  refs.card.classList.toggle('is-unaffordable', !purchased && !affordable);
   refs.button.disabled = purchased || !affordable;
-  refs.button.setAttribute('aria-label', purchased ? `${meta.name} purchased` : `Buy ${meta.name} for ${formatNumber(meta.cost)} Bloom`);
-  refs.checkmark.textContent = purchased ? '✓' : '✦';
-  refs.cost.textContent = purchased ? 'ready' : `${formatNumber(meta.cost)} ✿`;
+  refs.button.setAttribute('aria-label', purchased ? `${meta.name} purchased` : affordable ? `Buy ${meta.name} for ${formatNumber(meta.cost)} Bloom` : `Not enough Bloom for ${meta.name}, costs ${formatNumber(meta.cost)}`);
+  refs.checkmark.textContent = purchased ? '✓' : '';
+  refs.cost.textContent = purchased ? 'Owned' : `${formatNumber(meta.cost)} Bloom`;
+  refs.indicator.textContent = affordable ? '↑' : '';
 }
 
 export function createUI(root: HTMLElement, actions: UIActions): { render(state: GameState): void; showOffline(earned: number, elapsedMs: number): void } {
@@ -319,15 +321,10 @@ export function createUI(root: HTMLElement, actions: UIActions): { render(state:
 
     refs.bloom.textContent = formatNumber(state.bloom);
     refs.rate.textContent = `${formatNumber(production)} / sec`;
-    const lifetime = refs.rate.parentElement?.querySelector('.lifetime-value');
-    if (lifetime) lifetime.textContent = `${formatNumber(state.lifetimeBloom)} lifetime`;
     refs.next.textContent = nextMilestone ? stageName(MILESTONES.indexOf(nextMilestone) + 1) : 'Grove complete';
-    const nextDetail = refs.next.parentElement?.querySelector('.next-detail');
-    if (nextDetail) nextDetail.textContent = nextMilestone ? `${formatNumber(nextMilestone)} lifetime Bloom` : 'Keep tending and enjoy the quiet';
-    refs.progress.textContent = nextMilestone ? `${formatNumber(state.lifetimeBloom)} / ${formatNumber(nextMilestone)} Bloom` : 'All milestones reached';
+    refs.progress.textContent = nextMilestone ? `${formatNumber(state.lifetimeBloom)} / ${formatNumber(nextMilestone)} lifetime` : 'Complete';
     refs.progressFill.style.width = `${progress}%`;
-    refs.stageLabel.textContent = stageName(stage);
-    refs.tapValue.textContent = `+${formatNumber(tap)} Bloom per tend`;
+    refs.tapValue.textContent = `+${formatNumber(tap)} Bloom / tend`;
     refs.island.dataset.stage = String(stage);
     refs.islandGlow.dataset.stage = String(stage);
     refs.island.dataset.flowerCount = String(Math.min(3, state.owned.flower ?? 0));

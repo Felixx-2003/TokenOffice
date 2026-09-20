@@ -168,6 +168,60 @@ button:focus-visible, a:focus-visible { outline: 3px solid #c58d3d; outline-offs
 .milestone-modal strong { display: block; font-family: Fraunces, Georgia, serif; font-size: 15px; }
 .milestone-modal span { display: block; margin-top: 2px; color: #89815a; font-size: 11px; }
 
+/* Keep the play loop and all six purchases in one desktop viewport. */
+.app { width: min(1440px, 100%); height: 100vh; padding: 0 22px; }
+.app-shell { overflow-x: hidden; overflow-y: auto; }
+.topbar { min-height: 52px; height: 52px; }
+.main-layout { height: calc(100vh - 52px); grid-template-columns: minmax(0, 1.35fr) minmax(340px, .85fr); gap: 20px; padding: 12px 0 14px; }
+.garden-panel, .control-panel { min-height: 0; }
+.instruction { margin: 0 0 10px; color: var(--ink-soft); font-size: 14px; line-height: 1.4; }
+.scene-wrap { min-height: 0; margin: 0 0 10px; }
+.action-area { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.tap-button { min-width: 0; min-height: 82px; }
+.tap-button-icon { top: 25px; }
+.tap-button-hint { font-size: 10px; }
+.summary-card { min-width: 0; padding: 9px 14px 8px; border-radius: 14px; box-shadow: none; }
+.bloom-row { margin: 0; gap: 7px; }
+.bloom-icon { width: 26px; height: 26px; font-size: 16px; }
+.bloom-value { font-size: 30px; }
+.bloom-label { padding-bottom: 2px; }
+.rate-value { margin-left: auto; color: var(--green-deep); font-family: 'DM Mono', monospace; font-size: 11px; white-space: nowrap; }
+.goal-row { display: flex; justify-content: space-between; gap: 8px; margin: 5px 0 4px; color: var(--ink-soft); font-size: 10px; white-space: nowrap; }
+.next-value { display: inline; margin: 0; font-family: inherit; font-size: inherit; font-weight: 700; }
+.progress-text { color: var(--muted); font-family: 'DM Mono', monospace; }
+.progress-track { height: 5px; }
+.control-panel { display: flex; flex-direction: column; }
+.shop-section { margin: 0; }
+.section-heading { margin: 0 0 7px; }
+.section-heading h2 { margin: 0; font-size: 22px; }
+.card-list { gap: 5px; }
+.shop-buy, .upgrades-list .shop-buy { min-height: 57px; gap: 8px; padding: 6px 9px; }
+.card-icon { width: 30px; height: 30px; border-radius: 8px; font-size: 18px; }
+.card-body { gap: 2px; }
+.card-body strong { font-size: 14px; }
+.card-body span, .card-body small { font-size: 10px; }
+.card-side { display: grid; grid-template-columns: minmax(0, 1fr) 19px; grid-template-rows: 14px 15px; min-width: 97px; align-items: center; gap: 1px 3px; }
+.card-side b, .card-cost { grid-column: 1; justify-self: end; font-size: 10px; }
+.purchase-indicator { grid-column: 2; grid-row: 1 / span 2; justify-self: center; color: #2b9b4e; font-size: 23px; font-weight: 800; line-height: 1; }
+.is-affordable .card-cost { color: #218247; font-weight: 700; }
+.is-unaffordable .card-cost { color: #c6453f; font-weight: 700; }
+.is-owned .card-cost { color: var(--green); }
+.subsection-heading { margin: 10px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: none; }
+.settings { margin-top: auto; padding-top: 7px; }
+.setting-button, .reset-button { min-height: 29px; padding: 5px 8px; }
+
+@media (max-width: 950px) and (min-width: 761px) {
+  .action-area { grid-template-columns: 1fr; gap: 7px; }
+  .tap-button { min-height: 54px; }
+  .tap-button-icon { top: 14px; }
+}
+
+@media (max-height: 620px) and (min-width: 761px) {
+  .shop-buy, .upgrades-list .shop-buy { min-height: 50px; }
+  .section-heading h2 { font-size: 20px; }
+  .subsection-heading { margin: 7px 0 4px; }
+}
+
 @keyframes seed-float { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-6px) rotate(3deg); } }
 @keyframes twinkle { 0%, 100% { opacity: .28; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.35); } }
 @keyframes pulse { 50% { opacity: .35; box-shadow: 0 0 0 7px rgba(130, 174, 131, 0); } }
@@ -179,34 +233,26 @@ html.reduced-motion *, html.reduced-motion *::before, html.reduced-motion *::aft
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
 
-@media (max-width: 940px) {
-  .app { padding: 0 25px 32px; }
-  .main-layout { grid-template-columns: 1fr; gap: 30px; padding-top: 40px; }
-  .hero-copy { max-width: 650px; }
-  .scene-wrap { min-height: 440px; }
-  .control-panel { width: min(100%, 650px); }
+@media (max-width: 760px) {
+  .app { height: auto; padding: 0 18px 24px; }
+  .main-layout { height: auto; grid-template-columns: 1fr; gap: 20px; }
+  .scene-wrap { flex: none; height: 46vh; min-height: 270px; }
+  .control-panel { width: 100%; }
+  .settings { margin-top: 12px; }
 }
 
 @media (max-width: 540px) {
-  .app { padding: 0 16px 24px; }
-  .topbar { min-height: 72px; }
-  .save-note { font-size: 8px; letter-spacing: .04em; }
-  .hero-copy { padding-top: 4px; }
-  .hero-copy h1 { font-size: 45px; }
-  .lede { font-size: 13px; }
-  .scene-wrap { min-height: 350px; border-radius: 22px; }
+  .app { padding: 0 14px 22px; }
+  .scene-wrap { height: 38vh; min-height: 230px; border-radius: 18px; }
   .island-main { bottom: 17%; width: 74%; height: 118px; }
   .island-back { bottom: 14%; width: 79%; }
   .seed-pedestal { bottom: 38%; transform: translateX(-50%) scale(.82); }
   .growth-flowers { bottom: 41%; }
   .growth-trees { left: 9%; bottom: 36%; transform: scale(.8); transform-origin: left bottom; }
   .garden-label { right: 17px; bottom: 16px; font-size: 9px; }
-  .action-area { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .action-area { grid-template-columns: 1fr; gap: 8px; }
   .tap-button { width: 100%; }
-  .tap-value { margin-left: 3px; }
-  .summary-card { padding: 21px 18px 18px; }
-  .shop-section { margin-top: 28px; }
-  .section-note { display: none; }
+  .summary-card { padding: 10px 12px; }
   .settings { flex-wrap: wrap; }
   .reset-button { margin-left: 0; }
   .toast { width: calc(100% - 28px); text-align: center; }
