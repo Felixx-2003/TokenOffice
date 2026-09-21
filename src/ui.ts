@@ -1,349 +1,406 @@
 import {
-  PRODUCERS, UPGRADES, AUTO_RARITIES, MAX_AUTO_STARS,
-  canBuyAutoUpgrade, canBuyProducer, canBuyUpgrade,
-  getProducerCost, getProductionPerSecond, getAutoClicksPerSecond,
-  getAutoRarity, getAutoUpgradeCost, getLevel, getStage, getTapValue,
-  type GameState, type ProducerId, type UpgradeId, type Rarity,
+  AUTO_WHIP_COST, AUTO_WHIP_UNLOCK, MILESTONES, MODELS, MODEL_IDS, PLAN_MULTIPLIERS,
+  PLAN_NAMES, SKILLS, STAR_MULTIPLIERS, WHIP_AUTO_RATE, WHIP_MANUAL, WHIP_NAMES,
+  abilityReady, canBuyModel, canBuySkill, getAutoRatePerDesk, getLevel, getManualValue,
+  getModelYield, getNextMilestone, getPlanCost, getProductionPerSecond, getStarCost,
+  getWhipCost, type AbilityId, type GameState, type ModelId, type SkillId,
 } from './game';
 
 export type UIActions = {
-  onTap(): void;
-  onBuyAutoUpgrade(): void;
-  onBuyProducer(id: ProducerId): void;
-  onBuyUpgrade(id: UpgradeId): void;
+  onDesk(id: ModelId): void;
+  onPrompt(): void;
+  onStar(): void;
+  onPlan(): void;
+  onWhip(): void;
+  onAutoWhip(): void;
+  onSkill(id: SkillId): void;
+  onAbility(id: AbilityId): void;
   onToggleSound(): void;
   onToggleReducedMotion(): void;
   onReset(): void;
 };
 
-type CardRefs = {
-  card: HTMLElement;
+type DeskRefs = {
   button: HTMLButtonElement;
-  detail: HTMLElement;
-  cost: HTMLElement;
-  count: HTMLElement;
-  rarity: HTMLElement;
-  indicator: HTMLElement;
+  stars: HTMLElement;
+  plan: HTMLElement;
+  yield: HTMLElement;
+  price: HTMLElement;
 };
-
+type SkillRefs = { button: HTMLButtonElement; status: HTMLElement; cost: HTMLElement };
 type UIRefs = {
-  cash: HTMLElement;
-  level: HTMLElement;
+  tokens: HTMLElement;
   rate: HTMLElement;
-  next: HTMLElement;
+  level: HTMLElement;
+  scene: HTMLElement;
+  desks: Record<ModelId, DeskRefs>;
+  selectedName: HTMLElement;
+  selectedMeta: HTMLElement;
+  selectedYield: HTMLElement;
+  promptButton: HTMLButtonElement;
+  promptValue: HTMLElement;
+  starButton: HTMLButtonElement;
+  starDetail: HTMLElement;
+  starCost: HTMLElement;
+  planButton: HTMLButtonElement;
+  planDetail: HTMLElement;
+  planCost: HTMLElement;
+  whipButton: HTMLButtonElement;
+  whipName: HTMLElement;
+  whipDetail: HTMLElement;
+  whipCost: HTMLElement;
+  autoButton: HTMLButtonElement;
+  autoDetail: HTMLElement;
+  autoCost: HTMLElement;
+  abilityRow: HTMLElement;
+  abilities: Record<AbilityId, HTMLButtonElement>;
+  goal: HTMLElement;
   progress: HTMLElement;
   progressFill: HTMLElement;
-  scene: HTMLElement;
-  tapValue: HTMLElement;
-  producerCards: Record<ProducerId, CardRefs>;
-  autoCard: CardRefs;
-  upgradeCards: Record<UpgradeId, CardRefs>;
+  skillOpen: HTMLButtonElement;
+  skillOverlay: HTMLElement;
+  skillRefs: Record<SkillId, SkillRefs>;
   soundButton: HTMLButtonElement;
   motionButton: HTMLButtonElement;
   resetButton: HTMLButtonElement;
   toast: HTMLElement;
-  toastText: HTMLElement;
   milestone: HTMLElement;
-  milestoneTitle: HTMLElement;
-  milestoneText: HTMLElement;
 };
 
-const PRODUCER_ORDER: ProducerId[] = ['coinPusher', 'pinball', 'clawMachine', 'jackpot'];
-const UPGRADE_ORDER: UpgradeId[] = ['powerGlove', 'coinBooster', 'multiball'];
-const MILESTONES = [1_000, 5_000, 50_000, 500_000, 5_000_000];
-const GOAL_NAMES = ['Open the arcade', 'Free Auto Player', 'Epic machines', 'Legendary machines', 'Arcade empire'];
-const PRODUCER_META = Object.fromEntries(PRODUCERS.map((item) => [item.id, item])) as Record<ProducerId, (typeof PRODUCERS)[number]>;
-const UPGRADE_META = Object.fromEntries(UPGRADES.map((item) => [item.id, item])) as Record<UpgradeId, (typeof UPGRADES)[number]>;
-const ICONS: Record<ProducerId | UpgradeId | 'auto', string> = {
-  coinPusher: '◉', pinball: '◆', clawMachine: '⌁', jackpot: '★',
-  powerGlove: '✦', coinBooster: '◎', multiball: '✧', auto: '↻',
-};
-
-function formatNumber(value: number): string {
-  if (!Number.isFinite(value)) return '0';
+function fmt(value: number): string {
+  if (!Number.isFinite(value)) return '—';
   if (value < 1_000) return Math.floor(value).toLocaleString();
-  if (value < 1_000_000) return Math.floor(value).toLocaleString();
-  if (value < 1_000_000_000) return `${(value / 1_000_000).toFixed(value < 10_000_000 ? 1 : 0)}m`;
-  return `${(value / 1_000_000_000).toFixed(1)}b`;
+  const units: [number, string][] = [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
+  const [scale, suffix] = units.find(([n]) => value >= n) ?? [1, ''];
+  const scaled = value / scale;
+  return `${scaled < 10 ? scaled.toFixed(1).replace(/\.0$/, '') : Math.floor(scaled).toLocaleString()}${suffix}`;
 }
+const tokenText = (value: number): string => `${fmt(value)} Tokens`;
 
-function formatCash(value: number): string { return `$${formatNumber(value)}`; }
-
-function nextGoal(lifetime: number): { amount: number; previous: number; name: string } {
-  let previous = 0;
-  for (let index = 0; index < MILESTONES.length; index++) {
-    const amount = MILESTONES[index];
-    if (lifetime < amount) return { amount, previous, name: GOAL_NAMES[index] };
-    previous = amount;
-  }
-  let amount = 10_000_000;
-  while (amount <= lifetime) { previous = amount; amount *= 2; }
-  return { amount, previous, name: 'Next cash goal' };
-}
-
-function formatDuration(ms: number): string {
-  const seconds = Math.max(0, Math.ceil(ms / 1000));
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
-}
-
-function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string): HTMLElementTagNameMap[K] {
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (className) node.className = className;
   return node;
 }
 
-function setRarity(card: HTMLElement, rarity: Rarity | 'Locked'): void {
-  card.classList.remove('rarity-common', 'rarity-rare', 'rarity-epic', 'rarity-legendary');
-  if (rarity !== 'Locked') card.classList.add(`rarity-${rarity.toLowerCase()}`);
-}
-
-function makeScene(): HTMLElement {
-  const scene = element('div', 'arcade-scene');
-  scene.setAttribute('aria-label', 'Your arcade grows as you collect machines');
-  scene.innerHTML = `
-    <div class="ceiling-lights" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="arcade-sign">POCKET <b>ARCADE</b><small>PLAY · EARN · EXPAND</small></div>
-    <div class="machine-row" aria-hidden="true">
-      <div class="machine rarity-common" data-machine="coinPusher"><div class="machine-screen">◉</div><span>COIN</span><small>COMMON</small></div>
-      <div class="machine rarity-rare" data-machine="pinball"><div class="machine-screen">◆</div><span>PINBALL</span><small>RARE</small></div>
-      <div class="machine rarity-epic" data-machine="clawMachine"><div class="machine-screen">⌁</div><span>CLAW</span><small>EPIC</small></div>
-      <div class="machine rarity-legendary" data-machine="jackpot"><div class="machine-screen">★</div><span>JACKPOT</span><small>LEGENDARY</small></div>
-    </div>
-    <div class="arcade-floor" aria-hidden="true"></div>
-    <div class="arcade-status"><i></i><span class="arcade-status-text">Your first machine is waiting</span></div>
-  `;
-  return scene;
-}
-
-function makeCard(kind: ProducerId | UpgradeId | 'auto', name: string, rarity: Rarity | 'Locked', onClick: () => void): CardRefs {
-  const card = element('article', 'shop-card');
-  setRarity(card, rarity);
-  const button = element('button', 'shop-buy');
+function makeDesk(id: ModelId, action: () => void): DeskRefs {
+  const meta = MODELS.find((model) => model.id === id)!;
+  const button = el('button', 'model-desk is-locked');
   button.type = 'button';
-  button.dataset.shopId = kind;
-  button.addEventListener('click', onClick);
-  button.innerHTML = `<span class="card-icon" aria-hidden="true">${ICONS[kind]}</span><span class="card-body"><strong>${name}</strong><small class="card-detail"></small><small class="card-rarity"></small></span><span class="card-side"><b class="card-count"></b><span class="card-cost"></span><span class="purchase-indicator" aria-hidden="true"></span></span>`;
-  card.append(button);
+  button.dataset.model = id;
+  button.style.setProperty('--desk-color', meta.color);
+  button.innerHTML = `
+    <span class="desk-lamp" aria-hidden="true"></span>
+    <span class="desk-monitor" aria-hidden="true"><span class="desk-screen"><b>${meta.initials}</b><i></i><i></i><i></i></span></span>
+    <span class="helper-rig" aria-hidden="true">
+      <span class="helper-arm"></span><span class="helper-fist"><i></i></span>
+      <svg class="helper-whip" viewBox="0 0 94 72" focusable="false">
+        <path class="whip-handle" d="M74 18 L60 31" />
+        <path class="whip-cord" d="M61 30 C42 18, 18 17, 20 38 C22 55, 48 51, 40 68" />
+      </svg>
+    </span>
+    <span class="desk-surface" aria-hidden="true"><i></i></span>
+    <strong class="desk-name">${meta.name}</strong>
+    <span class="desk-stars"></span>
+    <span class="desk-plan"></span>
+    <span class="desk-yield"></span>
+    <span class="desk-price"></span>
+  `;
+  button.addEventListener('click', action);
   return {
-    card, button,
-    detail: button.querySelector('.card-detail') as HTMLElement,
-    cost: button.querySelector('.card-cost') as HTMLElement,
-    count: button.querySelector('.card-count') as HTMLElement,
-    rarity: button.querySelector('.card-rarity') as HTMLElement,
-    indicator: button.querySelector('.purchase-indicator') as HTMLElement,
+    button, stars: button.querySelector('.desk-stars') as HTMLElement,
+    plan: button.querySelector('.desk-plan') as HTMLElement,
+    yield: button.querySelector('.desk-yield') as HTMLElement,
+    price: button.querySelector('.desk-price') as HTMLElement,
+  };
+}
+
+function makeSkill(id: SkillId, action: () => void): SkillRefs {
+  const meta = SKILLS.find((skill) => skill.id === id)!;
+  const button = el('button', 'skill-node');
+  button.type = 'button';
+  button.dataset.skill = id;
+  button.innerHTML = `<strong>${meta.name}</strong><span>${meta.description}</span><small class="skill-status"></small><b class="skill-cost"></b>`;
+  button.addEventListener('click', action);
+  return {
+    button, status: button.querySelector('.skill-status') as HTMLElement,
+    cost: button.querySelector('.skill-cost') as HTMLElement,
   };
 }
 
 function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   root.innerHTML = '';
   root.className = 'app-shell';
-  const app = element('div', 'app');
-  const topbar = element('header', 'topbar');
-  topbar.innerHTML = '<a class="brand" href="#main"><span class="brand-mark">◉</span>Pocket <b>Arcade</b></a>';
-  const main = element('main', 'main-layout');
-  main.id = 'main';
-  const left = element('section', 'play-panel');
-  const instruction = element('p', 'instruction');
-  instruction.textContent = 'Press Space anywhere or click Play for Cash. Buy rarer machines to earn more, then upgrade your Auto Player.';
-  const sceneWrap = element('div', 'scene-wrap');
-  const scene = makeScene();
-  sceneWrap.append(scene);
-  const actionArea = element('div', 'action-area');
-  const tapButton = element('button', 'tap-button');
-  tapButton.type = 'button';
-  tapButton.innerHTML = '<span class="tap-button-icon">●</span><span class="tap-button-label">PLAY</span><small class="tap-button-hint">+$50 per play</small>';
-  tapButton.addEventListener('click', actions.onTap);
-  const summary = element('section', 'summary-card');
-  summary.setAttribute('aria-label', 'Arcade progress');
-  summary.innerHTML = '<div class="cash-row"><span class="cash-icon">$</span><strong class="cash-value">$0</strong><span class="cash-label">Cash</span><span class="rate-value">$0 / sec</span></div><div class="goal-row"><span><b class="level-value">Lv 1</b> · Next: <strong class="next-value">Open the arcade</strong></span><span class="progress-text">$0 / $1,000</span></div><div class="progress-track"><span class="progress-fill"></span></div>';
-  actionArea.append(tapButton, summary);
-  left.append(instruction, sceneWrap, actionArea);
+  const app = el('div', 'app');
+  const header = el('header', 'topbar');
+  header.innerHTML = `
+    <div class="brand"><span class="brand-mark">⌘</span> TOKEN <b>OFFICE</b><small>fictional idle game</small></div>
+    <div class="top-stats"><strong class="token-value">0</strong><span>Tokens</span><i></i><span class="rate-value">0/sec</span><span class="level-value">Lv 1</span></div>
+  `;
+  const main = el('main', 'main-layout');
+  const playArea = el('section', 'play-area');
+  const instruction = el('p', 'instruction');
+  instruction.textContent = 'Click an unlocked desk or press Space to prompt. Buy desks, then upgrade each model’s stars and plan.';
+  const scene = el('div', 'office-scene');
+  scene.innerHTML = '<div class="office-windows"><i></i><i></i><i></i><i></i></div><div class="office-title">THE TOKEN FLOOR <span>● LIVE</span></div><div class="office-grid"></div><div class="office-floor"></div>';
+  const grid = scene.querySelector('.office-grid') as HTMLElement;
+  const desks = Object.fromEntries(MODEL_IDS.map((id) => {
+    const refs = makeDesk(id, () => actions.onDesk(id));
+    grid.append(refs.button);
+    return [id, refs];
+  })) as Record<ModelId, DeskRefs>;
+  const actionBar = el('div', 'action-bar');
+  const promptButton = el('button', 'prompt-button');
+  promptButton.type = 'button';
+  promptButton.innerHTML = '<strong>⚡ PROMPT</strong><small class="prompt-value">+100 Tokens</small>';
+  promptButton.addEventListener('click', actions.onPrompt);
+  const actionHint = el('div', 'action-hint');
+  actionHint.innerHTML = '<strong class="selected-name">ChatGPT</strong><span class="selected-meta">1★ · Base</span><span class="selected-yield">100 Tokens per prompt</span>';
+  const skillOpen = el('button', 'skill-open');
+  skillOpen.type = 'button';
+  skillOpen.textContent = '✦ Skill Tree';
+  actionBar.append(promptButton, actionHint, skillOpen);
+  playArea.append(instruction, scene, actionBar);
 
-  const right = element('aside', 'control-panel');
-  const shop = element('section', 'shop-section');
-  shop.innerHTML = '<div class="section-heading"><h2>Machines</h2><span>rarer = bigger payout</span></div>';
-  const machineList = element('div', 'card-list');
-  const producerCards = Object.fromEntries(PRODUCER_ORDER.map((id) => {
-    const meta = PRODUCER_META[id];
-    const refs = makeCard(id, meta.name, meta.rarity, () => actions.onBuyProducer(id));
-    machineList.append(refs.card);
-    return [id, refs];
-  })) as Record<ProducerId, CardRefs>;
-  const autoCard = makeCard('auto', 'Auto Player', 'Locked', actions.onBuyAutoUpgrade);
-  autoCard.card.classList.add('auto-card');
-  const upgradeHeading = element('div', 'subsection-heading');
-  upgradeHeading.textContent = 'Upgrades';
-  const upgradeList = element('div', 'card-list');
-  const upgradeCards = Object.fromEntries(UPGRADE_ORDER.map((id) => {
-    const meta = UPGRADE_META[id];
-    const refs = makeCard(id, meta.name, meta.rarity, () => actions.onBuyUpgrade(id));
-    upgradeList.append(refs.card);
-    return [id, refs];
-  })) as Record<UpgradeId, CardRefs>;
-  shop.append(machineList, autoCard.card, upgradeHeading, upgradeList);
-  const footer = element('footer', 'settings');
-  const soundButton = element('button', 'setting-button');
-  const motionButton = element('button', 'setting-button');
-  const resetButton = element('button', 'reset-button');
+  const panel = el('aside', 'control-panel');
+  const modelCard = el('section', 'panel-card model-panel');
+  modelCard.innerHTML = '<div class="panel-heading"><h2>Selected model</h2><span>per desk</span></div><div class="upgrade-list"></div>';
+  const upgradeList = modelCard.querySelector('.upgrade-list') as HTMLElement;
+  const starButton = el('button', 'upgrade-button');
+  starButton.type = 'button';
+  starButton.innerHTML = '<span><strong>★ Stars</strong><small class="star-detail"></small></span><b class="star-cost"></b><i class="buy-arrow">↑</i>';
+  starButton.addEventListener('click', actions.onStar);
+  const planButton = el('button', 'upgrade-button');
+  planButton.type = 'button';
+  planButton.innerHTML = '<span><strong>▣ Plan</strong><small class="plan-detail"></small></span><b class="plan-cost"></b><i class="buy-arrow">↑</i>';
+  planButton.addEventListener('click', actions.onPlan);
+  upgradeList.append(starButton, planButton);
+
+  const whipCard = el('section', 'panel-card whip-panel');
+  whipCard.innerHTML = '<div class="panel-heading"><h2>Prompt Whip</h2><span class="whip-name">None</span></div><div class="upgrade-list"></div>';
+  const whipList = whipCard.querySelector('.upgrade-list') as HTMLElement;
+  const whipButton = el('button', 'upgrade-button');
+  whipButton.type = 'button';
+  whipButton.innerHTML = '<span><strong>↝ Whip rarity</strong><small class="whip-detail"></small></span><b class="whip-cost"></b><i class="buy-arrow">↑</i>';
+  whipButton.addEventListener('click', actions.onWhip);
+  const autoButton = el('button', 'upgrade-button');
+  autoButton.type = 'button';
+  autoButton.innerHTML = '<span><strong>✋ Auto Whip</strong><small class="auto-detail"></small></span><b class="auto-cost"></b><i class="buy-arrow">↑</i>';
+  autoButton.addEventListener('click', actions.onAutoWhip);
+  whipList.append(whipButton, autoButton);
+
+  const abilityRow = el('section', 'ability-row');
+  const abilities = {} as Record<AbilityId, HTMLButtonElement>;
+  for (const id of ['agi', 'asi', 'tibo'] as AbilityId[]) {
+    const button = el('button', 'ability-button');
+    button.type = 'button';
+    button.dataset.ability = id;
+    button.addEventListener('click', () => actions.onAbility(id));
+    abilityRow.append(button);
+    abilities[id] = button;
+  }
+
+  const goalCard = el('section', 'goal-card');
+  goalCard.innerHTML = '<span class="goal-label">NEXT MILESTONE</span><strong class="goal-value">1K Tokens</strong><span class="goal-progress">0 / 1K earned</span><div class="progress-track"><i class="progress-fill"></i></div>';
+  const settings = el('footer', 'settings');
+  const soundButton = el('button');
+  const motionButton = el('button');
+  const resetButton = el('button', 'reset-button');
   soundButton.type = motionButton.type = resetButton.type = 'button';
   soundButton.addEventListener('click', actions.onToggleSound);
   motionButton.addEventListener('click', actions.onToggleReducedMotion);
   resetButton.addEventListener('click', actions.onReset);
-  footer.append(soundButton, motionButton, resetButton);
-  right.append(shop, footer);
-  const toast = element('div', 'toast');
+  settings.append(soundButton, motionButton, resetButton);
+  panel.append(modelCard, whipCard, abilityRow, goalCard, settings);
+
+  const skillOverlay = el('div', 'skill-overlay');
+  skillOverlay.innerHTML = '<div class="skill-dialog" role="dialog" aria-modal="true" aria-label="Skill Tree"><div class="skill-header"><div><small>MILESTONE RESEARCH</small><h2>Skill Tree</h2></div><button class="skill-close" type="button" aria-label="Close skill tree">×</button></div><p>Earn lifetime Tokens to reveal nodes. Spend Tokens to buy them.</p><div class="skill-grid"></div></div>';
+  const skillGrid = skillOverlay.querySelector('.skill-grid') as HTMLElement;
+  const skillRefs = Object.fromEntries(SKILLS.map((skill) => {
+    const refs = makeSkill(skill.id, () => actions.onSkill(skill.id));
+    skillGrid.append(refs.button);
+    return [skill.id, refs];
+  })) as Record<SkillId, SkillRefs>;
+  const closeSkills = (): void => { skillOverlay.classList.remove('is-open'); skillOpen.focus(); };
+  skillOpen.addEventListener('click', () => skillOverlay.classList.add('is-open'));
+  (skillOverlay.querySelector('.skill-close') as HTMLButtonElement).addEventListener('click', closeSkills);
+  skillOverlay.addEventListener('click', (event) => { if (event.target === skillOverlay) closeSkills(); });
+  window.addEventListener('keydown', (event) => { if (event.key === 'Escape' && skillOverlay.classList.contains('is-open')) closeSkills(); });
+  const toast = el('div', 'toast');
   toast.setAttribute('role', 'status');
-  const toastText = element('span');
-  toast.append(toastText);
-  const milestone = element('div', 'milestone-modal');
+  const milestone = el('div', 'milestone');
   milestone.setAttribute('role', 'status');
-  const milestoneTitle = element('strong');
-  const milestoneText = element('span');
-  milestone.append(milestoneTitle, milestoneText);
-  main.append(left, right);
-  app.append(topbar, main, toast, milestone);
+  main.append(playArea, panel);
+  app.append(header, main, skillOverlay, toast, milestone);
   root.append(app);
   return {
-    cash: summary.querySelector('.cash-value') as HTMLElement,
-    level: summary.querySelector('.level-value') as HTMLElement,
-    rate: summary.querySelector('.rate-value') as HTMLElement,
-    next: summary.querySelector('.next-value') as HTMLElement,
-    progress: summary.querySelector('.progress-text') as HTMLElement,
-    progressFill: summary.querySelector('.progress-fill') as HTMLElement,
-    scene, tapValue: tapButton.querySelector('.tap-button-hint') as HTMLElement,
-    producerCards, autoCard, upgradeCards,
-    soundButton, motionButton, resetButton,
-    toast, toastText, milestone, milestoneTitle, milestoneText,
+    tokens: header.querySelector('.token-value') as HTMLElement,
+    rate: header.querySelector('.rate-value') as HTMLElement,
+    level: header.querySelector('.level-value') as HTMLElement,
+    scene, desks,
+    selectedName: actionHint.querySelector('.selected-name') as HTMLElement,
+    selectedMeta: actionHint.querySelector('.selected-meta') as HTMLElement,
+    selectedYield: actionHint.querySelector('.selected-yield') as HTMLElement,
+    promptButton, promptValue: promptButton.querySelector('.prompt-value') as HTMLElement,
+    starButton, starDetail: starButton.querySelector('.star-detail') as HTMLElement,
+    starCost: starButton.querySelector('.star-cost') as HTMLElement,
+    planButton, planDetail: planButton.querySelector('.plan-detail') as HTMLElement,
+    planCost: planButton.querySelector('.plan-cost') as HTMLElement,
+    whipButton, whipName: whipCard.querySelector('.whip-name') as HTMLElement,
+    whipDetail: whipButton.querySelector('.whip-detail') as HTMLElement,
+    whipCost: whipButton.querySelector('.whip-cost') as HTMLElement,
+    autoButton, autoDetail: autoButton.querySelector('.auto-detail') as HTMLElement,
+    autoCost: autoButton.querySelector('.auto-cost') as HTMLElement,
+    abilityRow, abilities,
+    goal: goalCard.querySelector('.goal-value') as HTMLElement,
+    progress: goalCard.querySelector('.goal-progress') as HTMLElement,
+    progressFill: goalCard.querySelector('.progress-fill') as HTMLElement,
+    skillOpen, skillOverlay, skillRefs,
+    soundButton, motionButton, resetButton, toast, milestone,
   };
 }
 
-function updateProducerCard(refs: CardRefs, id: ProducerId, state: GameState): void {
-  const meta = PRODUCER_META[id];
-  const count = state.owned[id];
-  const cost = getProducerCost(state, id);
-  const locked = state.lifetimeCash < meta.unlockAt;
-  const affordable = canBuyProducer(state, id);
-  refs.card.classList.toggle('is-locked', locked);
-  refs.card.classList.toggle('is-affordable', affordable);
-  refs.card.classList.toggle('is-unaffordable', !locked && !affordable);
-  refs.button.disabled = !affordable;
-  refs.button.setAttribute('aria-label', locked
-    ? `${meta.rarity} ${meta.name} unlocks at ${formatCash(meta.unlockAt)} earned, costs ${formatCash(cost)}`
-    : affordable ? `Buy ${meta.rarity} ${meta.name} for ${formatCash(cost)}`
-      : `Not enough Cash for ${meta.rarity} ${meta.name}, costs ${formatCash(cost)}`);
-  refs.count.textContent = count > 0 ? `×${count}` : '';
-  refs.detail.textContent = locked ? `Unlock at ${formatCash(meta.unlockAt)} earned` : `+${formatCash(meta.rate)} / sec each`;
-  refs.rarity.textContent = meta.rarity.toUpperCase();
-  refs.cost.textContent = formatCash(cost);
-  refs.indicator.textContent = affordable ? '↑' : '';
+function setBuyState(button: HTMLButtonElement, affordable: boolean, locked = false, owned = false): void {
+  button.disabled = !affordable;
+  button.classList.toggle('is-affordable', affordable);
+  button.classList.toggle('is-unaffordable', !affordable && !locked && !owned);
+  button.classList.toggle('is-locked', locked);
+  button.classList.toggle('is-owned', owned);
 }
 
-function updateUpgradeCard(refs: CardRefs, id: UpgradeId, state: GameState): void {
-  const meta = UPGRADE_META[id];
-  const owned = state.upgrades[id];
-  const affordable = canBuyUpgrade(state, id);
-  refs.card.classList.toggle('is-owned', owned);
-  refs.card.classList.toggle('is-affordable', affordable);
-  refs.card.classList.toggle('is-unaffordable', !owned && !affordable);
-  refs.button.disabled = owned || !affordable;
-  refs.button.setAttribute('aria-label', owned ? `${meta.name} owned`
-    : affordable ? `Buy ${meta.rarity} ${meta.name} for ${formatCash(meta.cost)}`
-      : `Not enough Cash for ${meta.name}, costs ${formatCash(meta.cost)}`);
-  refs.count.textContent = owned ? '✓' : '';
-  refs.detail.textContent = meta.description;
-  refs.rarity.textContent = meta.rarity.toUpperCase();
-  refs.cost.textContent = owned ? 'Owned' : formatCash(meta.cost);
-  refs.indicator.textContent = affordable ? '↑' : '';
-}
-
-function updateAutoCard(refs: CardRefs, state: GameState): void {
-  const stars = Math.min(MAX_AUTO_STARS, state.autoPlayerStars);
-  const locked = stars === 0;
-  const maxed = stars === MAX_AUTO_STARS;
-  const rarity = getAutoRarity(state);
-  const nextRarity = AUTO_RARITIES[Math.min(MAX_AUTO_STARS, stars + 1)];
-  const affordable = canBuyAutoUpgrade(state);
-  const cost = getAutoUpgradeCost(state);
-  const plays = getAutoClicksPerSecond(state);
-  const nextPlays = getAutoClicksPerSecond({ ...state, autoPlayerStars: Math.min(MAX_AUTO_STARS, stars + 1) });
-  setRarity(refs.card, rarity);
-  refs.card.classList.toggle('is-locked', locked);
-  refs.card.classList.toggle('is-affordable', affordable);
-  refs.card.classList.toggle('is-unaffordable', !locked && !maxed && !affordable);
-  refs.button.disabled = !affordable;
-  refs.button.setAttribute('aria-label', locked ? 'Auto Player unlocks free at Level 3 after earning $5,000 total'
-    : maxed ? 'Legendary Auto Player, maximum tier'
-      : affordable ? `Upgrade Auto Player to ${nextRarity} for ${formatCash(cost)}`
-        : `Not enough Cash to upgrade Auto Player to ${nextRarity}, costs ${formatCash(cost)}`);
-  refs.count.textContent = locked ? '' : `${stars}★`;
-  refs.rarity.textContent = locked ? 'LOCKED' : rarity.toUpperCase();
-  refs.detail.textContent = locked ? 'Free at Level 3 · $5,000 earned'
-    : maxed ? `${plays} plays / sec · max tier`
-      : `${plays}/sec → ${nextRarity} ${nextPlays}/sec`;
-  refs.cost.textContent = locked ? 'Free later' : maxed ? 'MAX' : formatCash(cost);
-  refs.indicator.textContent = affordable ? '↑' : '';
-}
-
-export function createUI(root: HTMLElement, actions: UIActions): { render(state: GameState): void; showOffline(earned: number, elapsedMs: number): void } {
+export function createUI(root: HTMLElement, actions: UIActions): {
+  render(state: GameState): void;
+  flashPrompt(id: ModelId, amount: number): void;
+  showHint(message: string): void;
+  showOffline(earned: number, elapsedMs: number): void;
+} {
   const refs = buildRefs(root, actions);
   let previousLevel = -1;
-  let toastTimeout: number | undefined;
+  let toastTimer: number | undefined;
+  let milestoneTimer: number | undefined;
 
-  function showToast(message: string): void {
-    refs.toastText.textContent = message;
+  function showHint(message: string): void {
+    refs.toast.textContent = message;
     refs.toast.classList.add('is-visible');
-    if (toastTimeout) window.clearTimeout(toastTimeout);
-    toastTimeout = window.setTimeout(() => refs.toast.classList.remove('is-visible'), 3000);
+    if (toastTimer) window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => refs.toast.classList.remove('is-visible'), 2800);
+  }
+
+  function flashPrompt(id: ModelId, amount: number): void {
+    const desk = refs.desks[id].button;
+    desk.classList.remove('is-prompting');
+    void desk.offsetWidth;
+    desk.classList.add('is-prompting');
+    window.setTimeout(() => desk.classList.remove('is-prompting'), 540);
+    const fly = el('span', 'token-fly');
+    fly.textContent = `+${fmt(amount)}`;
+    desk.append(fly);
+    window.setTimeout(() => fly.remove(), 920);
   }
 
   function render(state: GameState): void {
-    const level = getLevel(state);
-    const goal = nextGoal(state.lifetimeCash);
-    const progress = Math.min(100, Math.max(0, ((state.lifetimeCash - goal.previous) / (goal.amount - goal.previous)) * 100));
-    refs.cash.textContent = formatCash(state.cash);
-    refs.level.textContent = `Lv ${level}`;
-    refs.rate.textContent = `${formatCash(getProductionPerSecond(state))} / sec`;
-    refs.next.textContent = goal.name;
-    refs.progress.textContent = `${formatCash(state.lifetimeCash)} / ${formatCash(goal.amount)} earned`;
+    const selected = MODELS.find((model) => model.id === state.selectedModel)!;
+    const selection = state.models[selected.id];
+    const manual = getManualValue(state);
+    refs.tokens.textContent = fmt(state.tokens);
+    refs.rate.textContent = `${fmt(getProductionPerSecond(state))}/sec`;
+    refs.level.textContent = `Lv ${getLevel(state)}`;
+    refs.scene.dataset.whip = String(state.whipTier);
+    refs.scene.classList.toggle('has-auto', state.autoWhip);
+    refs.scene.style.setProperty('--auto-duration', `${Math.max(.3, 1 / Math.max(.5, getAutoRatePerDesk(state)))}s`);
+    for (const meta of MODELS) {
+      const model = state.models[meta.id];
+      const desk = refs.desks[meta.id];
+      const affordable = canBuyModel(state, meta.id);
+      desk.button.classList.toggle('is-locked', !model.unlocked);
+      desk.button.classList.toggle('is-selected', state.selectedModel === meta.id);
+      desk.button.classList.toggle('is-affordable', affordable);
+      desk.button.classList.toggle('is-unaffordable', !model.unlocked && !affordable);
+      desk.button.classList.toggle('is-auto', model.unlocked && state.autoWhip);
+      desk.stars.textContent = model.unlocked ? '★'.repeat(model.stars) + '☆'.repeat(5 - model.stars) : 'LOCKED';
+      desk.plan.textContent = model.unlocked ? PLAN_NAMES[model.plan] : '';
+      desk.yield.textContent = model.unlocked ? `+${fmt(getModelYield(state, meta.id))} / prompt` : '';
+      desk.price.textContent = model.unlocked ? '' : `${affordable ? '↑ ' : ''}${fmt(meta.price)} Tokens`;
+      desk.button.setAttribute('aria-label', model.unlocked
+        ? `Prompt ${meta.name}, ${model.stars} stars, ${PLAN_NAMES[model.plan]}, ${tokenText(getManualValue(state, meta.id))} per manual prompt`
+        : affordable ? `Unlock ${meta.name} for ${tokenText(meta.price)}`
+          : `${meta.name} costs ${tokenText(meta.price)}, not enough Tokens`);
+    }
+    refs.selectedName.textContent = selected.name;
+    refs.selectedMeta.textContent = `${selection.stars}★ · ${PLAN_NAMES[selection.plan]}`;
+    refs.selectedYield.textContent = `${tokenText(getModelYield(state, selected.id))} per model prompt`;
+    refs.promptValue.textContent = `+${tokenText(manual)} · Space`;
+    const starCost = getStarCost(state, selected.id);
+    const nextStars = Math.min(5, selection.stars + 1);
+    const canStar = state.tokens >= starCost;
+    setBuyState(refs.starButton, canStar, false, selection.stars === 5);
+    refs.starDetail.textContent = selection.stars === 5 ? 'Maximum 5★ reached'
+      : `${selection.stars}★ → ${nextStars}★ · ${STAR_MULTIPLIERS[nextStars]}x model yield`;
+    refs.starCost.textContent = selection.stars === 5 ? 'MAX' : fmt(starCost);
+    const planCost = getPlanCost(state, selected.id);
+    const nextPlan = Math.min(4, selection.plan + 1);
+    setBuyState(refs.planButton, state.tokens >= planCost, false, selection.plan === 4);
+    refs.planDetail.textContent = selection.plan === 4 ? 'Maximum plan reached'
+      : `${PLAN_NAMES[selection.plan]} → ${PLAN_NAMES[nextPlan]} · ${PLAN_MULTIPLIERS[nextPlan]}x`;
+    refs.planCost.textContent = selection.plan === 4 ? 'MAX' : fmt(planCost);
+    const whipCost = getWhipCost(state);
+    const nextWhip = Math.min(4, state.whipTier + 1);
+    const whipLocked = state.whipTier === 0 && state.lifetimeTokens < 1_000;
+    setBuyState(refs.whipButton, !whipLocked && state.tokens >= whipCost, whipLocked, state.whipTier === 4);
+    refs.whipName.textContent = WHIP_NAMES[state.whipTier];
+    refs.whipName.className = `whip-name whip-${state.whipTier}`;
+    refs.whipDetail.textContent = state.whipTier === 4 ? `${WHIP_MANUAL[4]}x manual · ${WHIP_AUTO_RATE[4]} auto prompts/sec/desk`
+      : whipLocked ? 'Unlock at 1K lifetime Tokens'
+        : `${WHIP_NAMES[nextWhip]} · ${WHIP_MANUAL[nextWhip]}x manual${state.autoWhip ? ` · ${WHIP_AUTO_RATE[nextWhip]}/sec` : ''}`;
+    refs.whipCost.textContent = state.whipTier === 4 ? 'MAX' : fmt(whipCost);
+    const autoLocked = state.lifetimeTokens < AUTO_WHIP_UNLOCK || state.whipTier === 0;
+    setBuyState(refs.autoButton, !state.autoWhip && !autoLocked && state.tokens >= AUTO_WHIP_COST, autoLocked, state.autoWhip);
+    refs.autoDetail.textContent = state.autoWhip ? `${getAutoRatePerDesk(state)} prompts/sec per unlocked desk`
+      : autoLocked ? 'Unlock at 10K lifetime Tokens + Common Whip' : 'Prompt every unlocked desk hands-free';
+    refs.autoCost.textContent = state.autoWhip ? 'ON' : fmt(AUTO_WHIP_COST);
+    const now = Date.now();
+    refs.abilityRow.classList.toggle('has-abilities', state.skills.agi || state.skills.asi || state.skills.tibo);
+    for (const id of ['agi', 'asi', 'tibo'] as AbilityId[]) {
+      const button = refs.abilities[id];
+      button.hidden = !state.skills[id];
+      const seconds = Math.ceil(Math.max(0, state.cooldowns[id] - now) / 1000);
+      button.textContent = seconds ? `${id.toUpperCase()} ${seconds}s` : id === 'tibo' ? '↺ Tibo Reset' : `⚡ ${id.toUpperCase()}`;
+      button.disabled = !abilityReady(state, id, now);
+    }
+    const next = getNextMilestone(state);
+    const previous = [...MILESTONES].reverse().find((value) => value <= state.lifetimeTokens) ?? 0;
+    const progress = Math.max(0, Math.min(100, ((state.lifetimeTokens - previous) / (next - previous)) * 100));
+    refs.goal.textContent = next === 1e12 ? 'All skills revealed' : `${fmt(next)} lifetime Tokens`;
+    refs.progress.textContent = `${fmt(state.lifetimeTokens)} / ${fmt(next)} earned`;
     refs.progressFill.style.width = `${progress}%`;
-    refs.tapValue.textContent = `+${formatCash(getTapValue(state))} per play`;
-    refs.scene.dataset.stage = String(getStage(state));
-    refs.scene.dataset.autoStars = String(state.autoPlayerStars);
-    for (const id of PRODUCER_ORDER) {
-      const machine = refs.scene.querySelector<HTMLElement>(`[data-machine="${id}"]`);
-      machine?.classList.toggle('is-active', state.owned[id] > 0);
-      updateProducerCard(refs.producerCards[id], id, state);
+    refs.skillOpen.textContent = `✦ Skill Tree · ${SKILLS.filter((skill) => state.skills[skill.id]).length}/${SKILLS.length}`;
+    for (const skill of SKILLS) {
+      const item = refs.skillRefs[skill.id];
+      const owned = state.skills[skill.id];
+      const unlocked = state.lifetimeTokens >= skill.threshold;
+      const prerequisite = !skill.requires || state.skills[skill.requires];
+      const affordable = canBuySkill(state, skill.id);
+      setBuyState(item.button, affordable, !unlocked || !prerequisite, owned);
+      item.status.textContent = owned ? 'OWNED' : !unlocked ? `Unlock at ${fmt(skill.threshold)} lifetime Tokens`
+        : !prerequisite ? `Requires ${SKILLS.find((s) => s.id === skill.requires)?.name}` : 'Ready to research';
+      item.cost.textContent = owned ? '✓' : fmt(skill.cost);
     }
-    const activeCount = PRODUCER_ORDER.filter((id) => state.owned[id] > 0).length;
-    const status = refs.scene.querySelector('.arcade-status-text');
-    if (status) status.textContent = state.autoPlayerStars > 0
-      ? `Auto Player on · ${getAutoClicksPerSecond(state)} plays/sec`
-      : activeCount > 0 ? `${activeCount} machine types running` : 'Your first machine is waiting';
-    updateAutoCard(refs.autoCard, state);
-    for (const id of UPGRADE_ORDER) updateUpgradeCard(refs.upgradeCards[id], id, state);
     refs.soundButton.textContent = state.soundEnabled ? '♪ Sound on' : '♪ Sound off';
-    refs.soundButton.setAttribute('aria-pressed', String(state.soundEnabled));
     refs.motionButton.textContent = state.reducedMotion ? '✧ Motion reduced' : '✧ Motion on';
-    refs.motionButton.setAttribute('aria-pressed', String(state.reducedMotion));
-    refs.resetButton.textContent = '↺ Reset save';
+    refs.resetButton.textContent = '↺ Reset';
     document.documentElement.classList.toggle('reduced-motion', state.reducedMotion);
-    if (previousLevel >= 0 && level > previousLevel) {
-      refs.milestoneTitle.textContent = level === 3 ? 'Auto Player unlocked!' : 'Level up!';
-      refs.milestoneText.textContent = level === 3 ? 'Your free Common helper plays for you.'
-        : level === 4 ? 'Epic machines are now available.'
-          : level === 5 ? 'Legendary machines are now available.' : 'Your arcade is growing.';
+    if (previousLevel >= 0 && getLevel(state) > previousLevel) {
+      refs.milestone.textContent = `Level ${getLevel(state)} · New research available`;
       refs.milestone.classList.add('is-visible');
-      window.setTimeout(() => refs.milestone.classList.remove('is-visible'), 4200);
+      if (milestoneTimer) window.clearTimeout(milestoneTimer);
+      milestoneTimer = window.setTimeout(() => refs.milestone.classList.remove('is-visible'), 3400);
     }
-    previousLevel = level;
+    previousLevel = getLevel(state);
   }
 
   function showOffline(earned: number, elapsedMs: number): void {
-    if (earned > 0 && elapsedMs >= 1000) showToast(`While you were away · +${formatCash(earned)} over ${formatDuration(elapsedMs)}`);
+    if (earned > 0 && elapsedMs >= 1000) showHint(`While away: +${tokenText(earned)} over ${Math.round(elapsedMs / 60000)} min`);
   }
 
-  return { render, showOffline };
+  return { render, flashPrompt, showHint, showOffline };
 }
