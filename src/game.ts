@@ -117,6 +117,11 @@ export function getSkill(id: SkillId): SkillMeta { return SKILL_BY_ID[id]; }
 export function getSkillLevel(state: GameState, id: SkillId): number { return state.skills[id] ?? 0; }
 export function getLevel(state: GameState): number { return 1 + MILESTONES.filter((amount) => state.lifetimeTokens >= amount).length; }
 export function getNextMilestone(state: GameState): number { return MILESTONES.find((amount) => state.lifetimeTokens < amount) ?? 1_000_000_000_000; }
+export function isStageCleared(state: GameState): boolean {
+  return state.whipTier === 4 && state.autoWhips === 5
+    && MODELS.every((model) => state.models[model.id].unlocked && state.models[model.id].stars === 5 && state.models[model.id].plan === 4)
+    && SKILL_IDS.every((id) => state.skills[id] === 5);
+}
 
 export function getModelYield(state: GameState, id: ModelId): number {
   if (!isModelId(id) || !state.models[id].unlocked) return 0;
@@ -137,12 +142,13 @@ export function getManualValue(state: GameState, id = state.selectedModel): numb
 }
 export function getAutoRatePerDesk(state: GameState): number { return state.autoWhips * WHIP_AUTO_RATE[state.whipTier]; }
 export function getProductionPerSecond(state: GameState): number {
+  if (isStageCleared(state)) return 0;
   const rate = getAutoRatePerDesk(state) * (1 + state.skills.asi);
   return Math.min(MAX_TOKENS, MODELS.reduce((sum, model) => sum + getModelYield(state, model.id) * rate, 0));
 }
 
 export function prompt(state: GameState, id = state.selectedModel): GameState {
-  if (!isModelId(id) || !state.models[id].unlocked) return state;
+  if (isStageCleared(state) || !isModelId(id) || !state.models[id].unlocked) return state;
   const nextCount = state.promptCount + 1; const hookLevel = state.skills.hook; const cadence = Math.max(5, 11 - hookLevel);
   const bonus = hookLevel > 0 && nextCount % cadence === 0 ? 1 + 4 * hookLevel : 1;
   const earned = getManualValue(state, id) * bonus;
@@ -203,7 +209,7 @@ export function buySkill(state: GameState, id: SkillId): GameState {
 
 export function abilityReady(state: GameState, id: AbilityId, now: number): boolean { return state.skills[id] > 0 && now >= state.cooldowns[id]; }
 export function activateAbility(state: GameState, id: AbilityId, now: number): GameState {
-  if (!abilityReady(state, id, now)) return state;
+  if (isStageCleared(state) || !abilityReady(state, id, now)) return state;
   const manualBurst = getManualValue(state) * 20 * state.skills.agi;
   const autoBurst = getProductionPerSecond(state) * 30 * state.skills.asi;
   const cooldowns = { ...state.cooldowns }; const effects = { ...state.effects }; let earned = 0;
@@ -222,6 +228,7 @@ export function advanceTime(state: GameState, now: number): { state: GameState; 
   if (current < state.lastTick || !Number.isFinite(state.lastTick)) return { state: { ...state, lastTick: current }, earned: 0, elapsedMs: 0 };
   const elapsedMs = Math.min(current - state.lastTick, MAX_OFFLINE_MS);
   if (elapsedMs <= 0) return { state, earned: 0, elapsedMs: 0 };
+  if (isStageCleared(state)) return { state: { ...state, lastTick: current }, earned: 0, elapsedMs };
   const earned = Math.min(MAX_TOKENS - state.tokens, getProductionPerSecond(state) * elapsedMs / 1000);
   if (earned <= 0) return { state: { ...state, lastTick: current }, earned: 0, elapsedMs };
   return { state: { ...state, tokens: credit(state.tokens, earned), lifetimeTokens: credit(state.lifetimeTokens, earned), lastTick: current }, earned, elapsedMs };

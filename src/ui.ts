@@ -3,7 +3,7 @@ import {
   PLAN_NAMES, SKILLS, STAR_MULTIPLIERS, WHIP_AUTO_RATE, WHIP_MANUAL, WHIP_NAMES,
   abilityReady, canBuyModel, canBuySkill, getAutoRatePerDesk, getLevel, getManualValue,
   getAutoWhipCost, getModelYield, getNextMilestone, getPlanCost, getProductionPerSecond, getSkillCost, getStarCost,
-  getWhipCost, type AbilityId, type GameState, type ModelId, type SkillId,
+  getWhipCost, isStageCleared, type AbilityId, type GameState, type ModelId, type SkillId,
 } from './game';
 
 export type UIActions = {
@@ -68,6 +68,8 @@ type UIRefs = {
   milestone: HTMLElement;
   tiboReset: HTMLElement;
   agiFrame: HTMLElement;
+  victory: HTMLElement;
+  victoryTokens: HTMLElement;
 };
 
 function fmt(value: number): string {
@@ -96,7 +98,7 @@ function makeDesk(id: ModelId, action: () => void): DeskRefs {
     <span class="desk-lamp" aria-hidden="true"></span>
     <span class="desk-monitor" aria-hidden="true"><span class="desk-screen"><b>${meta.initials}</b><i></i><i></i><i></i></span></span>
     <span class="helper-rig" aria-hidden="true">
-      <span class="helper-fist"><i></i></span>
+      <span class="helper-arm"><i></i></span>
       <svg class="helper-whip" viewBox="0 0 94 72" focusable="false">
         <path class="whip-cord" d="M66 25 C48 8, 20 11, 27 34 C33 52, 12 55, 4 67" />
       </svg>
@@ -239,8 +241,16 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   const agiFrame = el('div', 'agi-frame');
   agiFrame.setAttribute('aria-hidden', 'true');
   agiFrame.innerHTML = '<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>';
+  const victory = el('div', 'victory-screen');
+  victory.innerHTML = '<div class="victory-stars">✦ ✦ ✦</div><small>ALL SYSTEMS MAXED</small><h1>STAGE CLEARED</h1><p>You built the ultimate Token Office. Token production is complete.</p><strong class="victory-tokens"></strong><button type="button">VIEW OFFICE</button>';
+  const victoryTokens = victory.querySelector('.victory-tokens') as HTMLElement;
+  victory.dataset.dismissed = 'false';
+  (victory.querySelector('button') as HTMLButtonElement).addEventListener('click', () => {
+    victory.dataset.dismissed = 'true';
+    victory.classList.remove('is-visible');
+  });
   main.append(playArea, panel);
-  app.append(header, main, skillOverlay, agiFrame, tiboReset, toast, milestone);
+  app.append(header, main, skillOverlay, agiFrame, tiboReset, victory, toast, milestone);
   root.append(app);
   return {
     tokens: header.querySelector('.token-value') as HTMLElement,
@@ -265,7 +275,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
     progress: goalCard.querySelector('.goal-progress') as HTMLElement,
     progressFill: goalCard.querySelector('.progress-fill') as HTMLElement,
     skillOpen, skillOverlay, skillRefs,
-    soundButton, motionButton, resetButton, toast, milestone, tiboReset, agiFrame,
+    soundButton, motionButton, resetButton, toast, milestone, tiboReset, agiFrame, victory, victoryTokens,
   };
 }
 
@@ -322,6 +332,10 @@ export function createUI(root: HTMLElement, actions: UIActions): {
     refs.scene.classList.toggle('effect-tibo', now < state.effects.tiboUntil);
     refs.tiboReset.classList.toggle('is-visible', now < state.effects.tiboUntil);
     refs.agiFrame.classList.toggle('is-visible', now < state.effects.agiUntil);
+    refs.victoryTokens.textContent = `${fmt(state.lifetimeTokens)} lifetime Tokens`;
+    const cleared = isStageCleared(state);
+    if (!cleared) refs.victory.dataset.dismissed = 'false';
+    refs.victory.classList.toggle('is-visible', cleared && refs.victory.dataset.dismissed !== 'true');
     refs.scene.style.setProperty('--auto-duration', `${Math.max(.18, 1 / Math.max(.5, getAutoRatePerDesk(state)))}s`);
     for (const meta of MODELS) {
       const model = state.models[meta.id];

@@ -9,5 +9,3 @@ A fictional idle game about prompting ten animated model desks. Click a desk or 
 3. Run `npm run dev` (`npm.cmd run dev` in that PowerShell case) and open the address Vite prints, usually `http://127.0.0.1:5173/`.
 
 Opening `index.html` directly is not supported because the game uses Vite. A new game starts with 0 Tokens and saves locally in this browser. Run `npm run build` for a static production bundle in `dist/`.
-
-The whip crack is a CC0 recording by Joseph SARDIN from [BigSoundBank](https://bigsoundbank.com/whip-crack-1-s2949.html).
