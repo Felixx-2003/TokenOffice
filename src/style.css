@@ -64,11 +64,9 @@ button:disabled { cursor: not-allowed; }
 .is-affordable .desk-price { color: var(--green); font-weight: 700; }
 .helper-rig { position: absolute; top: 8%; right: -5px; z-index: 4; display: none; width: 96px; height: 72px; filter: drop-shadow(0 0 5px #050a12); pointer-events: none; }
 .helper-arm { position: absolute; top: 16px; right: -5px; z-index: 2; width: 43px; height: 18px; border: 2px solid #a66b53; border-radius: 14px 3px 3px 14px; background: linear-gradient(#f2b18c, #ce8867); box-shadow: inset 0 -4px #bf765c; transform-origin: right center; }
-.helper-arm i { position: absolute; top: -4px; left: 4px; z-index: 2; width: 9px; height: 24px; border: 2px solid #52bd8a; border-radius: 50%; transform: rotate(22deg); }
 .helper-whip { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .helper-whip path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .whip-cord { stroke: #78e4ac; stroke-width: 3.5; filter: drop-shadow(0 0 3px #78e4ac); transform-box: view-box; transform-origin: 66px 25px; }
-.whip-count { position: absolute; top: 1px; left: 47px; z-index: 5; min-width: 18px; padding: 1px 3px; border-radius: 8px; color: #102419; background: #8fffc4; font: 800 8px 'DM Mono', monospace; box-shadow: 0 0 8px #72efae; }
 .model-desk.is-auto .helper-rig { display: block; }
 .model-desk.is-auto .helper-arm { animation: arm-rope-snap var(--auto-duration, 1s) ease-in-out infinite; }
 .model-desk.is-auto .whip-cord { animation: rope-snap var(--auto-duration, 1s) ease-in-out infinite; }
@@ -135,6 +133,7 @@ button:disabled { cursor: not-allowed; }
 .action-hint span { color: #b6c6d6; font: 10px 'DM Mono', monospace; }
 .skill-open { min-width: 116px; padding: 8px 12px; border: 1px solid #9c8fc9; border-radius: 12px; color: #e6dcff; background: #302b48; font: 700 12px 'Space Grotesk', sans-serif; }
 .skill-open:hover { background: #42365f; }
+.skill-open.is-attention { border-color: var(--green); color: #dfffee; background: #24463d; box-shadow: 0 0 18px #58e5a26b; animation: attention-pulse 1.15s ease-in-out infinite; }
 
 .control-panel { gap: 9px; }
 .panel-card, .goal-card { border: 1px solid var(--line); border-radius: 13px; background: #1b283b; }
@@ -147,16 +146,19 @@ button:disabled { cursor: not-allowed; }
 .panel-heading .whip-3 { color: #ce96ff; }
 .panel-heading .whip-4 { color: #ffd179; }
 .upgrade-list { display: grid; gap: 6px; }
-.upgrade-button { display: grid; width: 100%; min-height: 55px; grid-template-columns: minmax(0, 1fr) auto 18px; align-items: center; gap: 5px; padding: 6px 9px; border: 1px solid #44556a; border-radius: 9px; color: #edf3fa; background: #222f43; text-align: left; }
+.upgrade-button { position: relative; display: grid; width: 100%; min-height: 55px; grid-template-columns: minmax(0, 1fr) auto 18px; align-items: center; gap: 5px; overflow: hidden; padding: 6px 9px; border: 1px solid #44556a; border-radius: 9px; color: #edf3fa; background: #222f43; text-align: left; }
+.upgrade-button > * { position: relative; z-index: 1; }
+.upgrade-button::after { position: absolute; top: -50%; bottom: -50%; left: -45%; width: 28%; content: ''; opacity: 0; background: linear-gradient(90deg, transparent, #baffda66, transparent); transform: rotate(18deg); pointer-events: none; }
 .upgrade-button:hover:not(:disabled) { background: #2a3c51; }
 .upgrade-button span { display: grid; min-width: 0; gap: 2px; }
 .upgrade-button strong { font: 700 13px 'Space Grotesk', sans-serif; }
 .upgrade-button small { overflow: hidden; color: #aebed0; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .upgrade-button b { color: var(--red); font: 700 11px 'DM Mono', monospace; white-space: nowrap; }
 .upgrade-button .buy-arrow { visibility: hidden; color: var(--green); font: 800 22px 'Space Grotesk', sans-serif; font-style: normal; }
-.upgrade-button.is-affordable { border-color: #56c98e; }
+.upgrade-button.is-affordable { border-color: #56c98e; background: linear-gradient(100deg, #203b38, #243449); box-shadow: 0 0 14px #55d99a55, inset 0 0 12px #55d99a1c; animation: attention-pulse 1.15s ease-in-out infinite; }
+.upgrade-button.is-affordable::after { opacity: 1; animation: upgrade-shimmer 1.65s ease-in-out infinite; }
 .upgrade-button.is-affordable b { color: var(--green); }
-.upgrade-button.is-affordable .buy-arrow { visibility: visible; }
+.upgrade-button.is-affordable .buy-arrow { visibility: visible; animation: arrow-bounce .7s ease-in-out infinite alternate; }
 .upgrade-button.is-owned b { color: var(--green); }
 .upgrade-button.is-locked { opacity: .65; }
 .ability-row { display: none; gap: 6px; }
@@ -190,7 +192,7 @@ button:disabled { cursor: not-allowed; }
 .skill-node span { color: #c1cddd; font-size: 11px; line-height: 1.35; }
 .skill-node small { margin-top: auto; color: #91a8b8; font: 9px 'DM Mono', monospace; }
 .skill-node b { color: var(--red); font: 700 11px 'DM Mono', monospace; }
-.skill-node.is-affordable { border-color: var(--green); box-shadow: inset 0 0 0 1px #54dc9630; }
+.skill-node.is-affordable { border-color: var(--green); box-shadow: inset 0 0 0 1px #54dc9630, 0 0 18px #54dc9655; animation: attention-pulse 1.15s ease-in-out infinite; }
 .skill-node.is-affordable b, .skill-node.is-owned b { color: var(--green); }
 .skill-node.is-owned { border-color: #88bba5; background: #25413e; }
 .skill-node.is-locked { opacity: .59; }
@@ -221,7 +223,9 @@ button:disabled { cursor: not-allowed; }
 @keyframes typing { 0% { transform: scaleX(.4); opacity: .3; } 100% { transform: scaleX(1); opacity: 1; } }
 @keyframes prompt-flash { 0% { filter: brightness(2); } 100% { filter: brightness(1); } }
 @keyframes token-fly { 0% { opacity: 0; transform: translate(-50%, 15px) scale(.7); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -70px) scale(1.15); } }
-html.reduced-motion *, html.reduced-motion *::before, html.reduced-motion *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+@keyframes attention-pulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.18); } }
+@keyframes upgrade-shimmer { 0% { left: -45%; } 55%, 100% { left: 125%; } }
+@keyframes arrow-bounce { from { transform: translateY(2px); } to { transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 @media (max-width: 1050px) and (min-width: 801px) {
   .main-layout { grid-template-columns: minmax(0, 1.3fr) minmax(300px, .85fr); gap: 9px; }

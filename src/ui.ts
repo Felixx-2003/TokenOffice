@@ -16,7 +16,6 @@ export type UIActions = {
   onSkill(id: SkillId): void;
   onAbility(id: AbilityId): void;
   onToggleSound(): void;
-  onToggleReducedMotion(): void;
   onReset(): void;
 };
 
@@ -26,7 +25,6 @@ type DeskRefs = {
   plan: HTMLElement;
   yield: HTMLElement;
   price: HTMLElement;
-  whipCount: HTMLElement;
 };
 type SkillRefs = { button: HTMLButtonElement; status: HTMLElement; cost: HTMLElement };
 type UIRefs = {
@@ -62,7 +60,6 @@ type UIRefs = {
   skillOverlay: HTMLElement;
   skillRefs: Record<SkillId, SkillRefs>;
   soundButton: HTMLButtonElement;
-  motionButton: HTMLButtonElement;
   resetButton: HTMLButtonElement;
   toast: HTMLElement;
   milestone: HTMLElement;
@@ -98,11 +95,10 @@ function makeDesk(id: ModelId, action: () => void): DeskRefs {
     <span class="desk-lamp" aria-hidden="true"></span>
     <span class="desk-monitor" aria-hidden="true"><span class="desk-screen"><b>${meta.initials}</b><i></i><i></i><i></i></span></span>
     <span class="helper-rig" aria-hidden="true">
-      <span class="helper-arm"><i></i></span>
+      <span class="helper-arm"></span>
       <svg class="helper-whip" viewBox="0 0 94 72" focusable="false">
         <path class="whip-cord" d="M66 25 C48 8, 20 11, 27 34 C33 52, 12 55, 4 67" />
       </svg>
-      <b class="whip-count"></b>
     </span>
     <span class="desk-surface" aria-hidden="true"><i></i></span>
     <strong class="desk-name">${meta.name}</strong>
@@ -117,7 +113,6 @@ function makeDesk(id: ModelId, action: () => void): DeskRefs {
     plan: button.querySelector('.desk-plan') as HTMLElement,
     yield: button.querySelector('.desk-yield') as HTMLElement,
     price: button.querySelector('.desk-price') as HTMLElement,
-    whipCount: button.querySelector('.whip-count') as HTMLElement,
   };
 }
 
@@ -210,13 +205,11 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   goalCard.innerHTML = '<span class="goal-label">NEXT MILESTONE</span><strong class="goal-value">1K Tokens</strong><span class="goal-progress">0 / 1K earned</span><div class="progress-track"><i class="progress-fill"></i></div>';
   const settings = el('footer', 'settings');
   const soundButton = el('button');
-  const motionButton = el('button');
   const resetButton = el('button', 'reset-button');
-  soundButton.type = motionButton.type = resetButton.type = 'button';
+  soundButton.type = resetButton.type = 'button';
   soundButton.addEventListener('click', actions.onToggleSound);
-  motionButton.addEventListener('click', actions.onToggleReducedMotion);
   resetButton.addEventListener('click', actions.onReset);
-  settings.append(soundButton, motionButton, resetButton);
+  settings.append(soundButton, resetButton);
   panel.append(modelCard, whipCard, abilityRow, goalCard, settings);
 
   const skillOverlay = el('div', 'skill-overlay');
@@ -275,7 +268,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
     progress: goalCard.querySelector('.goal-progress') as HTMLElement,
     progressFill: goalCard.querySelector('.progress-fill') as HTMLElement,
     skillOpen, skillOverlay, skillRefs,
-    soundButton, motionButton, resetButton, toast, milestone, tiboReset, agiFrame, victory, victoryTokens,
+    soundButton, resetButton, toast, milestone, tiboReset, agiFrame, victory, victoryTokens,
   };
 }
 
@@ -350,7 +343,6 @@ export function createUI(root: HTMLElement, actions: UIActions): {
       desk.plan.textContent = model.unlocked ? `${meta.openWeight ? 'OPEN WEIGHT · ' : ''}${PLAN_NAMES[model.plan]}` : '';
       desk.yield.textContent = model.unlocked ? `+${fmt(getModelYield(state, meta.id))} / prompt` : '';
       desk.price.textContent = model.unlocked ? '' : `${affordable ? '↑ ' : ''}${fmt(meta.price)} Tokens`;
-      desk.whipCount.textContent = state.autoWhips > 1 ? `×${state.autoWhips}` : '';
       desk.button.setAttribute('aria-label', model.unlocked
         ? `Prompt ${meta.name}, ${model.stars} stars, ${PLAN_NAMES[model.plan]}, ${tokenText(getManualValue(state, meta.id))} per manual prompt`
         : affordable ? `Unlock ${meta.name} for ${tokenText(meta.price)}`
@@ -405,7 +397,9 @@ export function createUI(root: HTMLElement, actions: UIActions): {
     refs.progress.textContent = `${fmt(state.lifetimeTokens)} / ${fmt(next)} earned`;
     refs.progressFill.style.width = `${progress}%`;
     const skillStars = SKILLS.reduce((sum, skill) => sum + state.skills[skill.id], 0);
-    refs.skillOpen.textContent = `✦ Skill Tree · ${skillStars}/40★`;
+    const skillAvailable = SKILLS.some((skill) => canBuySkill(state, skill.id));
+    refs.skillOpen.classList.toggle('is-attention', skillAvailable);
+    refs.skillOpen.textContent = `${skillAvailable ? '↑ ' : '✦ '}Skill Tree · ${skillStars}/40★`;
     for (const skill of SKILLS) {
       const item = refs.skillRefs[skill.id];
       const level = state.skills[skill.id];
@@ -420,9 +414,7 @@ export function createUI(root: HTMLElement, actions: UIActions): {
       item.cost.textContent = owned ? 'MAX' : fmt(getSkillCost(state, skill.id));
     }
     refs.soundButton.textContent = state.soundEnabled ? '♪ Sound on' : '♪ Sound off';
-    refs.motionButton.textContent = state.reducedMotion ? '✧ Motion reduced' : '✧ Motion on';
     refs.resetButton.textContent = '↺ Reset';
-    document.documentElement.classList.toggle('reduced-motion', state.reducedMotion);
     if (previousLevel >= 0 && getLevel(state) > previousLevel) {
       refs.milestone.textContent = `Level ${getLevel(state)} · New research available`;
       refs.milestone.classList.add('is-visible');

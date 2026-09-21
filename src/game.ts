@@ -14,7 +14,7 @@ export interface GameState {
   whipTier: WhipTier; autoWhips: number; skills: Record<SkillId, number>; promptCount: number;
   cooldowns: Record<AbilityId, number>;
   effects: Record<'agiUntil' | 'asiUntil' | 'tiboUntil', number>;
-  lastTick: number; soundEnabled: boolean; reducedMotion: boolean;
+  lastTick: number; soundEnabled: boolean;
 }
 
 export interface ModelMeta {
@@ -107,7 +107,7 @@ export function normalizeState(input: unknown, now = Date.now()): GameState {
     skills, promptCount: whole(raw.promptCount, 0, MAX_TOKENS),
     cooldowns: { agi: nonNegative(cooldowns.agi), asi: nonNegative(cooldowns.asi), tibo: nonNegative(cooldowns.tibo) },
     effects: { agiUntil: nonNegative(effects.agiUntil), asiUntil: nonNegative(effects.asiUntil), tiboUntil: nonNegative(effects.tiboUntil) },
-    lastTick: finite(raw.lastTick, now), soundEnabled: raw.soundEnabled !== false, reducedMotion: raw.reducedMotion === true,
+    lastTick: finite(raw.lastTick, now), soundEnabled: raw.soundEnabled !== false,
   };
 }
 

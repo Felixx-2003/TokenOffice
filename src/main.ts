@@ -117,13 +117,18 @@ function stopMusic(): void {
 function sound(frequency: number): void {
   if (!state.soundEnabled) return;
   startMusic();
-  playTone(frequency, 0.08, 0.045, 0, 'square');
+  playSynthPulse(frequency / 2, 0.16, 0.025);
+  playTone(frequency, 0.14, 0.038, 0.025, 'triangle');
+  playTone(frequency * 1.5, 0.24, 0.026, 0.095, 'sine');
 }
 
 function unlockSound(): void {
   if (!state.soundEnabled) return;
   startMusic();
-  [523, 659, 784, 1047].forEach((note, index) => playTone(note, 0.22, 0.05, index * 0.075, 'triangle'));
+  [523, 659, 784, 1047].forEach((note, index) => {
+    playSynthPulse(note / 2, 0.28, 0.022, index * 0.075);
+    playTone(note, 0.3, 0.038, index * 0.075, 'triangle');
+  });
 }
 
 function abilitySound(id: AbilityId): void {
@@ -208,10 +213,6 @@ const ui = createUI(root, {
     state = { ...state, soundEnabled: !state.soundEnabled };
     ui.render(state); saveGame(state);
     if (state.soundEnabled) { startMusic(); sound(650); } else stopMusic();
-  },
-  onToggleReducedMotion: () => {
-    state = { ...state, reducedMotion: !state.reducedMotion };
-    ui.render(state); saveGame(state);
   },
   onReset: () => {
     if (!window.confirm('Reset Token Office and erase all progress?')) return;
