@@ -1,6 +1,6 @@
 /** Pure game rules. Token values and model rankings are fictional game balance. */
 
-export const MODEL_IDS = ['chatgpt', 'gemini', 'claude', 'grok', 'deepseek', 'glm', 'kimi', 'qwen', 'llama', 'mistral'] as const;
+export const MODEL_IDS = ['llama', 'qwen', 'mistral', 'deepseek', 'glm', 'kimi', 'grok', 'gemini', 'claude', 'chatgpt'] as const;
 export type ModelId = (typeof MODEL_IDS)[number];
 export type ModelPlan = 0 | 1 | 2 | 3 | 4;
 export type WhipTier = 0 | 1 | 2 | 3 | 4;
@@ -10,49 +10,31 @@ export type AbilityId = 'agi' | 'asi' | 'tibo';
 
 export interface ModelState { unlocked: boolean; stars: number; plan: ModelPlan }
 export interface GameState {
-  tokens: number;
-  lifetimeTokens: number;
-  models: Record<ModelId, ModelState>;
-  selectedModel: ModelId;
-  whipTier: WhipTier;
-  autoWhip: boolean;
-  skills: Record<SkillId, boolean>;
-  promptCount: number;
+  tokens: number; lifetimeTokens: number; models: Record<ModelId, ModelState>; selectedModel: ModelId;
+  whipTier: WhipTier; autoWhips: number; skills: Record<SkillId, number>; promptCount: number;
   cooldowns: Record<AbilityId, number>;
-  lastTick: number;
-  soundEnabled: boolean;
-  reducedMotion: boolean;
+  effects: Record<'agiUntil' | 'asiUntil' | 'tiboUntil', number>;
+  lastTick: number; soundEnabled: boolean; reducedMotion: boolean;
 }
 
 export interface ModelMeta {
-  id: ModelId;
-  name: string;
-  initials: string;
-  price: number;
-  base: number;
-  color: string;
+  id: ModelId; name: string; initials: string; price: number; base: number; color: string; openWeight: boolean;
 }
-
 export interface SkillMeta {
-  id: SkillId;
-  name: string;
-  threshold: number;
-  cost: number;
-  description: string;
-  requires?: SkillId;
+  id: SkillId; name: string; threshold: number; cost: number; description: string; requires?: SkillId;
 }
 
 export const MODELS: readonly ModelMeta[] = [
-  { id: 'chatgpt', name: 'ChatGPT', initials: 'GPT', price: 0, base: 100, color: '#73e5b4' },
-  { id: 'gemini', name: 'Gemini', initials: 'GEM', price: 1_000, base: 300, color: '#91b9ff' },
-  { id: 'claude', name: 'Claude', initials: 'CLD', price: 10_000, base: 1_000, color: '#f0ad88' },
-  { id: 'grok', name: 'Grok', initials: 'GRK', price: 100_000, base: 3_000, color: '#d5d9e8' },
-  { id: 'deepseek', name: 'DeepSeek', initials: 'DS', price: 1_000_000, base: 10_000, color: '#79c5ff' },
-  { id: 'glm', name: 'GLM', initials: 'GLM', price: 10_000_000, base: 30_000, color: '#bba0ff' },
-  { id: 'kimi', name: 'Kimi', initials: 'KIM', price: 100_000_000, base: 100_000, color: '#f3be78' },
-  { id: 'qwen', name: 'Qwen', initials: 'QWN', price: 1_000_000_000, base: 300_000, color: '#bd9aff' },
-  { id: 'llama', name: 'Llama', initials: 'LLM', price: 10_000_000_000, base: 1_000_000, color: '#f3a8c9' },
-  { id: 'mistral', name: 'Mistral', initials: 'MST', price: 50_000_000_000, base: 3_000_000, color: '#ffd178' },
+  { id: 'llama', name: 'Llama', initials: 'LLM', price: 0, base: 100, color: '#f3a8c9', openWeight: true },
+  { id: 'qwen', name: 'Qwen', initials: 'QWN', price: 1_000, base: 300, color: '#bd9aff', openWeight: true },
+  { id: 'mistral', name: 'Mistral', initials: 'MST', price: 10_000, base: 1_000, color: '#ffd178', openWeight: true },
+  { id: 'deepseek', name: 'DeepSeek', initials: 'DS', price: 100_000, base: 3_000, color: '#79c5ff', openWeight: true },
+  { id: 'glm', name: 'GLM', initials: 'GLM', price: 1_000_000, base: 10_000, color: '#bba0ff', openWeight: true },
+  { id: 'kimi', name: 'Kimi', initials: 'KIM', price: 10_000_000, base: 30_000, color: '#f3be78', openWeight: true },
+  { id: 'grok', name: 'Grok', initials: 'GRK', price: 100_000_000, base: 100_000, color: '#d5d9e8', openWeight: false },
+  { id: 'gemini', name: 'Gemini', initials: 'GEM', price: 1_000_000_000, base: 300_000, color: '#91b9ff', openWeight: false },
+  { id: 'claude', name: 'Claude', initials: 'CLD', price: 10_000_000_000, base: 1_000_000, color: '#f0ad88', openWeight: false },
+  { id: 'chatgpt', name: 'ChatGPT', initials: 'GPT', price: 50_000_000_000, base: 3_000_000, color: '#73e5b4', openWeight: false },
 ];
 
 export const PLAN_NAMES = ['Base', 'Plus', 'Pro', 'Max 5x', 'Max 20x'] as const;
@@ -60,21 +42,21 @@ export const PLAN_MULTIPLIERS = [1, 2, 4, 5, 20] as const;
 export const STAR_MULTIPLIERS = [0, 1, 1.5, 2.25, 3.5, 5] as const;
 export const WHIP_NAMES = ['None', 'Common', 'Rare', 'Epic', 'Legendary'] as const;
 export const WHIP_MANUAL = [1, 1.25, 1.5, 2, 3] as const;
-export const WHIP_AUTO_RATE = [0, 0.5, 0.75, 1.25, 2] as const;
+export const WHIP_AUTO_RATE = [0, 1, 1.5, 2.5, 4] as const;
 export const WHIP_COSTS = [0, 1_000, 50_000, 5_000_000, 500_000_000] as const;
 export const AUTO_WHIP_UNLOCK = 10_000;
-export const AUTO_WHIP_COST = 10_000;
+export const AUTO_WHIP_COSTS = [10_000, 100_000, 2_000_000, 50_000_000, 1_000_000_000] as const;
 export const MILESTONES = [1_000, 10_000, 1_000_000, 100_000_000, 1_000_000_000, 10_000_000_000, 100_000_000_000] as const;
 
 export const SKILLS: readonly SkillMeta[] = [
-  { id: 'hook', name: 'Hook', threshold: 10_000, cost: 5_000, description: 'Every 10th manual prompt earns 5x.' },
-  { id: 'skills', name: 'Skills', threshold: 10_000, cost: 7_000, description: 'Model star and plan prices fall 20%.' },
-  { id: 'loop', name: 'Loop Engineering', threshold: 1_000_000, cost: 250_000, description: 'Every prompt produces 50% more Tokens.', requires: 'hook' },
-  { id: 'graph', name: 'Graph Engineering', threshold: 1_000_000, cost: 300_000, description: 'Each unlocked neighbor adds 15% output.', requires: 'skills' },
-  { id: 'agi', name: 'AGI', threshold: 100_000_000, cost: 20_000_000, description: '2x manual output; burst for 20 prompts.', requires: 'loop' },
-  { id: 'asi', name: 'ASI', threshold: 1_000_000_000, cost: 200_000_000, description: '2x auto output; burst for 30 seconds.', requires: 'agi' },
-  { id: 'rsi', name: 'RSI', threshold: 10_000_000_000, cost: 2_000_000_000, description: 'Triple all model output.', requires: 'asi' },
-  { id: 'tibo', name: 'Tibo Reset', threshold: 100_000_000_000, cost: 20_000_000_000, description: 'Refresh AGI and ASI; collect 10 seconds of auto output.', requires: 'rsi' },
+  { id: 'hook', name: 'Hook', threshold: 10_000, cost: 5_000, description: 'Each star triggers stronger bonus prompts.' },
+  { id: 'skills', name: 'Skills', threshold: 10_000, cost: 7_000, description: 'Each star cuts model upgrade prices 5%.' },
+  { id: 'loop', name: 'Loop Engineering', threshold: 1_000_000, cost: 250_000, description: 'Each star adds 25% model output.', requires: 'hook' },
+  { id: 'graph', name: 'Graph Engineering', threshold: 1_000_000, cost: 300_000, description: 'Each star adds 7.5% per unlocked neighbor.', requires: 'skills' },
+  { id: 'agi', name: 'AGI', threshold: 100_000_000, cost: 20_000_000, description: 'Each star adds 1x manual output and burst power.', requires: 'loop' },
+  { id: 'asi', name: 'ASI', threshold: 1_000_000_000, cost: 200_000_000, description: 'Each star adds 1x auto output and burst power.', requires: 'agi' },
+  { id: 'rsi', name: 'RSI', threshold: 10_000_000_000, cost: 2_000_000_000, description: 'Each star adds 2x all model output.', requires: 'asi' },
+  { id: 'tibo', name: 'Tibo Reset', threshold: 100_000_000_000, cost: 20_000_000_000, description: 'Activates AGI + ASI; stars add reset power.', requires: 'rsi' },
 ];
 
 const MODEL_BY_ID = Object.fromEntries(MODELS.map((m) => [m.id, m])) as Record<ModelId, ModelMeta>;
@@ -84,15 +66,16 @@ const MAX_TOKENS = Number.MAX_SAFE_INTEGER;
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 const finite = (v: unknown, fallback: number): number => typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 const nonNegative = (v: unknown, fallback = 0): number => Math.min(MAX_TOKENS, Math.max(0, finite(v, fallback)));
+const whole = (v: unknown, fallback: number, max: number): number => Math.min(max, Math.max(0, Math.floor(nonNegative(v, fallback))));
 const isModelId = (v: string): v is ModelId => MODEL_IDS.includes(v as ModelId);
 const isSkillId = (v: string): v is SkillId => SKILL_IDS.includes(v as SkillId);
 const credit = (value: number, gain: number): number => Math.min(MAX_TOKENS, value + Math.max(0, gain));
 
 function emptyModels(): Record<ModelId, ModelState> {
-  return Object.fromEntries(MODEL_IDS.map((id) => [id, { unlocked: id === 'chatgpt', stars: 1, plan: 0 }])) as Record<ModelId, ModelState>;
+  return Object.fromEntries(MODEL_IDS.map((id) => [id, { unlocked: id === 'llama', stars: 1, plan: 0 }])) as Record<ModelId, ModelState>;
 }
-function emptySkills(): Record<SkillId, boolean> {
-  return Object.fromEntries(SKILL_IDS.map((id) => [id, false])) as Record<SkillId, boolean>;
+function emptySkills(): Record<SkillId, number> {
+  return Object.fromEntries(SKILL_IDS.map((id) => [id, 0])) as Record<SkillId, number>;
 }
 
 export function normalizeState(input: unknown, now = Date.now()): GameState {
@@ -102,176 +85,144 @@ export function normalizeState(input: unknown, now = Date.now()): GameState {
   const models = emptyModels();
   for (const id of MODEL_IDS) {
     const model = isRecord(raw.models) && isRecord(raw.models[id]) ? raw.models[id] as Record<string, unknown> : {};
-    const stars = finite(model.stars, 1);
-    const plan = finite(model.plan, 0);
     models[id] = {
-      unlocked: id === 'chatgpt' || model.unlocked === true,
-      stars: Number.isSafeInteger(stars) ? Math.min(5, Math.max(1, stars)) : 1,
-      plan: (Number.isSafeInteger(plan) ? Math.min(4, Math.max(0, plan)) : 0) as ModelPlan,
+      unlocked: id === 'llama' || model.unlocked === true,
+      stars: Math.max(1, whole(model.stars, 1, 5)),
+      plan: whole(model.plan, 0, 4) as ModelPlan,
     };
   }
   const skills = emptySkills();
-  for (const id of SKILL_IDS) skills[id] = isRecord(raw.skills) && raw.skills[id] === true;
-  const selected = typeof raw.selectedModel === 'string' && isModelId(raw.selectedModel) && models[raw.selectedModel].unlocked
-    ? raw.selectedModel : 'chatgpt';
-  const whip = finite(raw.whipTier, 0);
-  const whipTier = (Number.isSafeInteger(whip) ? Math.min(4, Math.max(0, whip)) : 0) as WhipTier;
+  for (const id of SKILL_IDS) {
+    const value = isRecord(raw.skills) ? raw.skills[id] : 0;
+    skills[id] = value === true ? 1 : whole(value, 0, 5);
+  }
+  const selected = typeof raw.selectedModel === 'string' && isModelId(raw.selectedModel) && models[raw.selectedModel].unlocked ? raw.selectedModel : 'llama';
+  const whipTier = whole(raw.whipTier, 0, 4) as WhipTier;
+  const legacyAuto = raw.autoWhip === true ? 1 : 0;
   const cooldowns = isRecord(raw.cooldowns) ? raw.cooldowns : {};
+  const effects = isRecord(raw.effects) ? raw.effects : {};
   return {
     tokens, lifetimeTokens, models, selectedModel: selected, whipTier,
-    autoWhip: raw.autoWhip === true && whipTier > 0,
-    skills, promptCount: Math.max(0, Math.floor(nonNegative(raw.promptCount))),
-    cooldowns: {
-      agi: nonNegative(cooldowns.agi), asi: nonNegative(cooldowns.asi), tibo: nonNegative(cooldowns.tibo),
-    },
-    lastTick: finite(raw.lastTick, now),
-    soundEnabled: raw.soundEnabled === true,
-    reducedMotion: raw.reducedMotion === true,
+    autoWhips: whipTier > 0 ? whole(raw.autoWhips, legacyAuto, 5) : 0,
+    skills, promptCount: whole(raw.promptCount, 0, MAX_TOKENS),
+    cooldowns: { agi: nonNegative(cooldowns.agi), asi: nonNegative(cooldowns.asi), tibo: nonNegative(cooldowns.tibo) },
+    effects: { agiUntil: nonNegative(effects.agiUntil), asiUntil: nonNegative(effects.asiUntil), tiboUntil: nonNegative(effects.tiboUntil) },
+    lastTick: finite(raw.lastTick, now), soundEnabled: raw.soundEnabled !== false, reducedMotion: raw.reducedMotion === true,
   };
 }
 
-export function createInitialState(now = Date.now()): GameState {
-  return normalizeState({ lastTick: now }, now);
-}
-
+export function createInitialState(now = Date.now()): GameState { return normalizeState({ lastTick: now }, now); }
 export function getModel(id: ModelId): ModelMeta { return MODEL_BY_ID[id]; }
 export function getSkill(id: SkillId): SkillMeta { return SKILL_BY_ID[id]; }
-export function getLevel(state: GameState): number {
-  return 1 + MILESTONES.filter((amount) => state.lifetimeTokens >= amount).length;
-}
-export function getNextMilestone(state: GameState): number {
-  return MILESTONES.find((amount) => state.lifetimeTokens < amount) ?? 1_000_000_000_000;
-}
+export function getSkillLevel(state: GameState, id: SkillId): number { return state.skills[id] ?? 0; }
+export function getLevel(state: GameState): number { return 1 + MILESTONES.filter((amount) => state.lifetimeTokens >= amount).length; }
+export function getNextMilestone(state: GameState): number { return MILESTONES.find((amount) => state.lifetimeTokens < amount) ?? 1_000_000_000_000; }
 
 export function getModelYield(state: GameState, id: ModelId): number {
   if (!isModelId(id) || !state.models[id].unlocked) return 0;
-  const meta = MODEL_BY_ID[id];
-  const model = state.models[id];
+  const meta = MODEL_BY_ID[id]; const model = state.models[id];
   let multiplier = STAR_MULTIPLIERS[model.stars] * PLAN_MULTIPLIERS[model.plan];
-  if (state.skills.loop) multiplier *= 1.5;
-  if (state.skills.rsi) multiplier *= 3;
-  if (state.skills.graph) {
+  multiplier *= 1 + state.skills.loop * 0.25;
+  multiplier *= 1 + state.skills.rsi * 2;
+  if (state.skills.graph > 0) {
     const index = MODEL_IDS.indexOf(id);
     const neighbors = Number(index > 0 && state.models[MODEL_IDS[index - 1]].unlocked)
       + Number(index < MODEL_IDS.length - 1 && state.models[MODEL_IDS[index + 1]].unlocked);
-    multiplier *= 1 + neighbors * 0.15;
+    multiplier *= 1 + neighbors * 0.075 * state.skills.graph;
   }
   return Math.min(MAX_TOKENS, Math.floor(meta.base * multiplier));
 }
-
 export function getManualValue(state: GameState, id = state.selectedModel): number {
-  const base = getModelYield(state, id);
-  return Math.min(MAX_TOKENS, Math.floor(base * WHIP_MANUAL[state.whipTier] * (state.skills.agi ? 2 : 1)));
+  return Math.min(MAX_TOKENS, Math.floor(getModelYield(state, id) * WHIP_MANUAL[state.whipTier] * (1 + state.skills.agi)));
 }
-
-export function getAutoRatePerDesk(state: GameState): number {
-  return state.autoWhip ? WHIP_AUTO_RATE[state.whipTier] : 0;
-}
-
+export function getAutoRatePerDesk(state: GameState): number { return state.autoWhips * WHIP_AUTO_RATE[state.whipTier]; }
 export function getProductionPerSecond(state: GameState): number {
-  const rate = getAutoRatePerDesk(state) * (state.skills.asi ? 2 : 1);
+  const rate = getAutoRatePerDesk(state) * (1 + state.skills.asi);
   return Math.min(MAX_TOKENS, MODELS.reduce((sum, model) => sum + getModelYield(state, model.id) * rate, 0));
 }
 
 export function prompt(state: GameState, id = state.selectedModel): GameState {
   if (!isModelId(id) || !state.models[id].unlocked) return state;
-  const nextCount = state.promptCount + 1;
-  const bonus = state.skills.hook && nextCount % 10 === 0 ? 5 : 1;
+  const nextCount = state.promptCount + 1; const hookLevel = state.skills.hook; const cadence = Math.max(5, 11 - hookLevel);
+  const bonus = hookLevel > 0 && nextCount % cadence === 0 ? 1 + 4 * hookLevel : 1;
   const earned = getManualValue(state, id) * bonus;
-  return {
-    ...state, tokens: credit(state.tokens, earned), lifetimeTokens: credit(state.lifetimeTokens, earned),
-    selectedModel: id, promptCount: nextCount,
-  };
+  return { ...state, tokens: credit(state.tokens, earned), lifetimeTokens: credit(state.lifetimeTokens, earned), selectedModel: id, promptCount: nextCount };
 }
-
-export function canBuyModel(state: GameState, id: ModelId): boolean {
-  return isModelId(id) && !state.models[id].unlocked && state.tokens >= MODEL_BY_ID[id].price;
-}
+export function canBuyModel(state: GameState, id: ModelId): boolean { return isModelId(id) && !state.models[id].unlocked && state.tokens >= MODEL_BY_ID[id].price; }
 export function buyModel(state: GameState, id: ModelId): GameState {
   if (!canBuyModel(state, id)) return state;
-  return {
-    ...state, tokens: state.tokens - MODEL_BY_ID[id].price,
-    models: { ...state.models, [id]: { unlocked: true, stars: 1, plan: 0 } },
-    selectedModel: id,
-  };
+  return { ...state, tokens: state.tokens - MODEL_BY_ID[id].price, models: { ...state.models, [id]: { unlocked: true, stars: 1, plan: 0 } }, selectedModel: id };
 }
 
-function discounted(state: GameState, cost: number): number {
-  return Math.ceil(cost * (state.skills.skills ? 0.8 : 1));
-}
+function discounted(state: GameState, cost: number): number { return Math.ceil(cost * (1 - state.skills.skills * 0.05)); }
 export function getStarCost(state: GameState, id: ModelId): number {
   if (!isModelId(id) || !state.models[id].unlocked || state.models[id].stars >= 5) return Infinity;
-  const base = Math.max(500, MODEL_BY_ID[id].price);
-  return discounted(state, base * 4 ** (state.models[id].stars - 1));
+  return discounted(state, Math.max(500, MODEL_BY_ID[id].price) * 4 ** (state.models[id].stars - 1));
 }
 export function buyStar(state: GameState, id: ModelId): GameState {
-  const cost = getStarCost(state, id);
-  if (state.tokens < cost) return state;
-  return { ...state, tokens: state.tokens - cost, models: {
-    ...state.models, [id]: { ...state.models[id], stars: state.models[id].stars + 1 },
-  } };
+  const cost = getStarCost(state, id); if (state.tokens < cost) return state;
+  return { ...state, tokens: state.tokens - cost, models: { ...state.models, [id]: { ...state.models[id], stars: state.models[id].stars + 1 } } };
 }
 export function getPlanCost(state: GameState, id: ModelId): number {
   if (!isModelId(id) || !state.models[id].unlocked || state.models[id].plan >= 4) return Infinity;
-  const base = Math.max(500, MODEL_BY_ID[id].price);
-  return discounted(state, base * [0, 5, 20, 50, 500][state.models[id].plan + 1]);
+  return discounted(state, Math.max(500, MODEL_BY_ID[id].price) * [0, 5, 20, 50, 500][state.models[id].plan + 1]);
 }
 export function buyPlan(state: GameState, id: ModelId): GameState {
-  const cost = getPlanCost(state, id);
-  if (state.tokens < cost) return state;
-  return { ...state, tokens: state.tokens - cost, models: {
-    ...state.models, [id]: { ...state.models[id], plan: (state.models[id].plan + 1) as ModelPlan },
-  } };
+  const cost = getPlanCost(state, id); if (state.tokens < cost) return state;
+  return { ...state, tokens: state.tokens - cost, models: { ...state.models, [id]: { ...state.models[id], plan: (state.models[id].plan + 1) as ModelPlan } } };
 }
 
-export function getWhipCost(state: GameState): number {
-  return state.whipTier >= 4 ? Infinity : WHIP_COSTS[state.whipTier + 1];
-}
+export function getWhipCost(state: GameState): number { return state.whipTier >= 4 ? Infinity : WHIP_COSTS[state.whipTier + 1]; }
 export function buyWhip(state: GameState): GameState {
   const cost = getWhipCost(state);
   if (state.tokens < cost || (state.whipTier === 0 && state.lifetimeTokens < 1_000)) return state;
   return { ...state, tokens: state.tokens - cost, whipTier: (state.whipTier + 1) as WhipTier };
 }
+export function getAutoWhipCost(state: GameState): number { return state.autoWhips >= 5 ? Infinity : AUTO_WHIP_COSTS[state.autoWhips]; }
 export function buyAutoWhip(state: GameState): GameState {
-  if (state.autoWhip || state.whipTier === 0 || state.lifetimeTokens < AUTO_WHIP_UNLOCK || state.tokens < AUTO_WHIP_COST) return state;
-  return { ...state, tokens: state.tokens - AUTO_WHIP_COST, autoWhip: true };
+  const cost = getAutoWhipCost(state);
+  if (state.autoWhips >= 5 || state.whipTier === 0 || state.lifetimeTokens < AUTO_WHIP_UNLOCK || state.tokens < cost) return state;
+  return { ...state, tokens: state.tokens - cost, autoWhips: state.autoWhips + 1 };
 }
 
+export function getSkillCost(state: GameState, id: SkillId): number {
+  if (!isSkillId(id) || state.skills[id] >= 5) return Infinity;
+  return SKILL_BY_ID[id].cost * 5 ** state.skills[id];
+}
 export function canBuySkill(state: GameState, id: SkillId): boolean {
   if (!isSkillId(id)) return false;
   const skill = SKILL_BY_ID[id];
-  return !state.skills[id] && state.lifetimeTokens >= skill.threshold && state.tokens >= skill.cost
-    && (!skill.requires || state.skills[skill.requires]);
+  return state.skills[id] < 5 && state.lifetimeTokens >= skill.threshold && state.tokens >= getSkillCost(state, id)
+    && (!skill.requires || state.skills[skill.requires] > 0);
 }
 export function buySkill(state: GameState, id: SkillId): GameState {
   if (!canBuySkill(state, id)) return state;
-  return { ...state, tokens: state.tokens - SKILL_BY_ID[id].cost, skills: { ...state.skills, [id]: true } };
+  const cost = getSkillCost(state, id);
+  return { ...state, tokens: state.tokens - cost, skills: { ...state.skills, [id]: state.skills[id] + 1 } };
 }
 
-export function abilityReady(state: GameState, id: AbilityId, now: number): boolean {
-  return state.skills[id] && now >= state.cooldowns[id];
-}
+export function abilityReady(state: GameState, id: AbilityId, now: number): boolean { return state.skills[id] > 0 && now >= state.cooldowns[id]; }
 export function activateAbility(state: GameState, id: AbilityId, now: number): GameState {
   if (!abilityReady(state, id, now)) return state;
-  const earned = id === 'agi' ? getManualValue(state) * 20
-    : id === 'asi' ? getProductionPerSecond(state) * 30
-      : getProductionPerSecond(state) * 10;
-  const cooldowns = { ...state.cooldowns, [id]: now + (id === 'agi' ? 30_000 : id === 'asi' ? 60_000 : 120_000) };
-  if (id === 'tibo') { cooldowns.agi = now; cooldowns.asi = now; }
-  return { ...state, tokens: credit(state.tokens, earned), lifetimeTokens: credit(state.lifetimeTokens, earned), cooldowns };
+  const manualBurst = getManualValue(state) * 20 * state.skills.agi;
+  const autoBurst = getProductionPerSecond(state) * 30 * state.skills.asi;
+  const cooldowns = { ...state.cooldowns }; const effects = { ...state.effects }; let earned = 0;
+  if (id === 'agi') { earned = manualBurst; cooldowns.agi = now + 30_000; effects.agiUntil = now + 8_000; }
+  else if (id === 'asi') { earned = autoBurst; cooldowns.asi = now + 60_000; effects.asiUntil = now + 10_000; }
+  else {
+    earned = manualBurst + autoBurst + getProductionPerSecond(state) * 10 * state.skills.tibo;
+    cooldowns.tibo = now + 120_000; cooldowns.agi = now + 30_000; cooldowns.asi = now + 60_000;
+    effects.tiboUntil = now + 4_500; effects.agiUntil = now + 10_000; effects.asiUntil = now + 10_000;
+  }
+  return { ...state, tokens: credit(state.tokens, earned), lifetimeTokens: credit(state.lifetimeTokens, earned), cooldowns, effects };
 }
 
 export function advanceTime(state: GameState, now: number): { state: GameState; earned: number; elapsedMs: number } {
   const current = finite(now, state.lastTick);
-  if (current < state.lastTick || !Number.isFinite(state.lastTick)) {
-    return { state: { ...state, lastTick: current }, earned: 0, elapsedMs: 0 };
-  }
+  if (current < state.lastTick || !Number.isFinite(state.lastTick)) return { state: { ...state, lastTick: current }, earned: 0, elapsedMs: 0 };
   const elapsedMs = Math.min(current - state.lastTick, MAX_OFFLINE_MS);
   if (elapsedMs <= 0) return { state, earned: 0, elapsedMs: 0 };
   const earned = Math.min(MAX_TOKENS - state.tokens, getProductionPerSecond(state) * elapsedMs / 1000);
   if (earned <= 0) return { state: { ...state, lastTick: current }, earned: 0, elapsedMs };
-  return {
-    state: { ...state, tokens: credit(state.tokens, earned), lifetimeTokens: credit(state.lifetimeTokens, earned), lastTick: current },
-    earned, elapsedMs,
-  };
+  return { state: { ...state, tokens: credit(state.tokens, earned), lifetimeTokens: credit(state.lifetimeTokens, earned), lastTick: current }, earned, elapsedMs };
 }

@@ -1,8 +1,8 @@
 import {
-  AUTO_WHIP_COST, AUTO_WHIP_UNLOCK, MILESTONES, MODELS, MODEL_IDS, PLAN_MULTIPLIERS,
+  AUTO_WHIP_UNLOCK, MILESTONES, MODELS, MODEL_IDS, PLAN_MULTIPLIERS,
   PLAN_NAMES, SKILLS, STAR_MULTIPLIERS, WHIP_AUTO_RATE, WHIP_MANUAL, WHIP_NAMES,
   abilityReady, canBuyModel, canBuySkill, getAutoRatePerDesk, getLevel, getManualValue,
-  getModelYield, getNextMilestone, getPlanCost, getProductionPerSecond, getStarCost,
+  getAutoWhipCost, getModelYield, getNextMilestone, getPlanCost, getProductionPerSecond, getSkillCost, getStarCost,
   getWhipCost, type AbilityId, type GameState, type ModelId, type SkillId,
 } from './game';
 
@@ -26,6 +26,7 @@ type DeskRefs = {
   plan: HTMLElement;
   yield: HTMLElement;
   price: HTMLElement;
+  whipCount: HTMLElement;
 };
 type SkillRefs = { button: HTMLButtonElement; status: HTMLElement; cost: HTMLElement };
 type UIRefs = {
@@ -65,6 +66,7 @@ type UIRefs = {
   resetButton: HTMLButtonElement;
   toast: HTMLElement;
   milestone: HTMLElement;
+  tiboReset: HTMLElement;
 };
 
 function fmt(value: number): string {
@@ -96,8 +98,12 @@ function makeDesk(id: ModelId, action: () => void): DeskRefs {
       <span class="helper-arm"></span><span class="helper-fist"><i></i></span>
       <svg class="helper-whip" viewBox="0 0 94 72" focusable="false">
         <path class="whip-handle" d="M74 18 L60 31" />
-        <path class="whip-cord" d="M61 30 C42 18, 18 17, 20 38 C22 55, 48 51, 40 68" />
+        <path class="whip-cord whip-wind" d="M61 30 C42 17, 17 18, 20 39 C23 56, 48 51, 40 68" />
+        <path class="whip-cord whip-throw" d="M61 30 C43 27, 28 29, 6 20" />
+        <path class="whip-cord whip-snap" d="M61 30 C40 34, 21 50, 3 66" />
+        <circle class="whip-tip" cx="3" cy="66" r="3" />
       </svg>
+      <b class="whip-count"></b>
     </span>
     <span class="desk-surface" aria-hidden="true"><i></i></span>
     <strong class="desk-name">${meta.name}</strong>
@@ -112,6 +118,7 @@ function makeDesk(id: ModelId, action: () => void): DeskRefs {
     plan: button.querySelector('.desk-plan') as HTMLElement,
     yield: button.querySelector('.desk-yield') as HTMLElement,
     price: button.querySelector('.desk-price') as HTMLElement,
+    whipCount: button.querySelector('.whip-count') as HTMLElement,
   };
 }
 
@@ -142,7 +149,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   const instruction = el('p', 'instruction');
   instruction.textContent = 'Click an unlocked desk or press Space to prompt. Buy desks, then upgrade each model’s stars and plan.';
   const scene = el('div', 'office-scene');
-  scene.innerHTML = '<div class="office-windows"><i></i><i></i><i></i><i></i></div><div class="office-title">THE TOKEN FLOOR <span>● LIVE</span></div><div class="office-grid"></div><div class="office-floor"></div>';
+  scene.innerHTML = '<div class="office-windows"><i></i><i></i><i></i><i></i></div><div class="office-title">THE TOKEN FLOOR <span>● LIVE</span></div><div class="agi-heat"><i></i><i></i><i></i><i></i><i></i></div><div class="asi-storm"><i></i><i></i><i></i></div><div class="office-grid"></div><div class="office-floor"></div>';
   const grid = scene.querySelector('.office-grid') as HTMLElement;
   const desks = Object.fromEntries(MODEL_IDS.map((id) => {
     const refs = makeDesk(id, () => actions.onDesk(id));
@@ -155,7 +162,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   promptButton.innerHTML = '<strong>⚡ PROMPT</strong><small class="prompt-value">+100 Tokens</small>';
   promptButton.addEventListener('click', actions.onPrompt);
   const actionHint = el('div', 'action-hint');
-  actionHint.innerHTML = '<strong class="selected-name">ChatGPT</strong><span class="selected-meta">1★ · Base</span><span class="selected-yield">100 Tokens per prompt</span>';
+  actionHint.innerHTML = '<strong class="selected-name">Llama</strong><span class="selected-meta">1★ · Base</span><span class="selected-yield">100 Tokens per prompt</span>';
   const skillOpen = el('button', 'skill-open');
   skillOpen.type = 'button';
   skillOpen.textContent = '✦ Skill Tree';
@@ -214,7 +221,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   panel.append(modelCard, whipCard, abilityRow, goalCard, settings);
 
   const skillOverlay = el('div', 'skill-overlay');
-  skillOverlay.innerHTML = '<div class="skill-dialog" role="dialog" aria-modal="true" aria-label="Skill Tree"><div class="skill-header"><div><small>MILESTONE RESEARCH</small><h2>Skill Tree</h2></div><button class="skill-close" type="button" aria-label="Close skill tree">×</button></div><p>Earn lifetime Tokens to reveal nodes. Spend Tokens to buy them.</p><div class="skill-grid"></div></div>';
+  skillOverlay.innerHTML = '<div class="skill-dialog" role="dialog" aria-modal="true" aria-label="Skill Tree"><div class="skill-header"><div><small>MILESTONE RESEARCH</small><h2>Skill Tree</h2></div><button class="skill-close" type="button" aria-label="Close skill tree">×</button></div><p>Reveal each skill with lifetime Tokens, then upgrade it from one to five stars.</p><div class="skill-grid"></div></div>';
   const skillGrid = skillOverlay.querySelector('.skill-grid') as HTMLElement;
   const skillRefs = Object.fromEntries(SKILLS.map((skill) => {
     const refs = makeSkill(skill.id, () => actions.onSkill(skill.id));
@@ -230,8 +237,10 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   toast.setAttribute('role', 'status');
   const milestone = el('div', 'milestone');
   milestone.setAttribute('role', 'status');
+  const tiboReset = el('div', 'tibo-reset');
+  tiboReset.innerHTML = '<span class="tibo-rays"></span><img src="/tibo.webp" alt="Tibo"><strong>TIBO RESET</strong><b>AGI + ASI ACTIVATED</b>';
   main.append(playArea, panel);
-  app.append(header, main, skillOverlay, toast, milestone);
+  app.append(header, main, skillOverlay, tiboReset, toast, milestone);
   root.append(app);
   return {
     tokens: header.querySelector('.token-value') as HTMLElement,
@@ -256,7 +265,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
     progress: goalCard.querySelector('.goal-progress') as HTMLElement,
     progressFill: goalCard.querySelector('.progress-fill') as HTMLElement,
     skillOpen, skillOverlay, skillRefs,
-    soundButton, motionButton, resetButton, toast, milestone,
+    soundButton, motionButton, resetButton, toast, milestone, tiboReset,
   };
 }
 
@@ -306,8 +315,13 @@ export function createUI(root: HTMLElement, actions: UIActions): {
     refs.rate.textContent = `${fmt(getProductionPerSecond(state))}/sec`;
     refs.level.textContent = `Lv ${getLevel(state)}`;
     refs.scene.dataset.whip = String(state.whipTier);
-    refs.scene.classList.toggle('has-auto', state.autoWhip);
-    refs.scene.style.setProperty('--auto-duration', `${Math.max(.3, 1 / Math.max(.5, getAutoRatePerDesk(state)))}s`);
+    const now = Date.now();
+    refs.scene.classList.toggle('has-auto', state.autoWhips > 0);
+    refs.scene.classList.toggle('effect-agi', now < state.effects.agiUntil);
+    refs.scene.classList.toggle('effect-asi', now < state.effects.asiUntil);
+    refs.scene.classList.toggle('effect-tibo', now < state.effects.tiboUntil);
+    refs.tiboReset.classList.toggle('is-visible', now < state.effects.tiboUntil);
+    refs.scene.style.setProperty('--auto-duration', `${Math.max(.18, 1 / Math.max(.5, getAutoRatePerDesk(state)))}s`);
     for (const meta of MODELS) {
       const model = state.models[meta.id];
       const desk = refs.desks[meta.id];
@@ -316,18 +330,19 @@ export function createUI(root: HTMLElement, actions: UIActions): {
       desk.button.classList.toggle('is-selected', state.selectedModel === meta.id);
       desk.button.classList.toggle('is-affordable', affordable);
       desk.button.classList.toggle('is-unaffordable', !model.unlocked && !affordable);
-      desk.button.classList.toggle('is-auto', model.unlocked && state.autoWhip);
+      desk.button.classList.toggle('is-auto', model.unlocked && state.autoWhips > 0);
       desk.stars.textContent = model.unlocked ? '★'.repeat(model.stars) + '☆'.repeat(5 - model.stars) : 'LOCKED';
-      desk.plan.textContent = model.unlocked ? PLAN_NAMES[model.plan] : '';
+      desk.plan.textContent = model.unlocked ? `${meta.openWeight ? 'OPEN WEIGHT · ' : ''}${PLAN_NAMES[model.plan]}` : '';
       desk.yield.textContent = model.unlocked ? `+${fmt(getModelYield(state, meta.id))} / prompt` : '';
       desk.price.textContent = model.unlocked ? '' : `${affordable ? '↑ ' : ''}${fmt(meta.price)} Tokens`;
+      desk.whipCount.textContent = state.autoWhips > 1 ? `×${state.autoWhips}` : '';
       desk.button.setAttribute('aria-label', model.unlocked
         ? `Prompt ${meta.name}, ${model.stars} stars, ${PLAN_NAMES[model.plan]}, ${tokenText(getManualValue(state, meta.id))} per manual prompt`
         : affordable ? `Unlock ${meta.name} for ${tokenText(meta.price)}`
           : `${meta.name} costs ${tokenText(meta.price)}, not enough Tokens`);
     }
     refs.selectedName.textContent = selected.name;
-    refs.selectedMeta.textContent = `${selection.stars}★ · ${PLAN_NAMES[selection.plan]}`;
+    refs.selectedMeta.textContent = `${selection.stars}★ · ${selected.openWeight ? 'Open weight · ' : ''}${PLAN_NAMES[selection.plan]}`;
     refs.selectedYield.textContent = `${tokenText(getModelYield(state, selected.id))} per model prompt`;
     refs.promptValue.textContent = `+${tokenText(manual)} · Space`;
     const starCost = getStarCost(state, selected.id);
@@ -351,15 +366,16 @@ export function createUI(root: HTMLElement, actions: UIActions): {
     refs.whipName.className = `whip-name whip-${state.whipTier}`;
     refs.whipDetail.textContent = state.whipTier === 4 ? `${WHIP_MANUAL[4]}x manual · ${WHIP_AUTO_RATE[4]} auto prompts/sec/desk`
       : whipLocked ? 'Unlock at 1K lifetime Tokens'
-        : `${WHIP_NAMES[nextWhip]} · ${WHIP_MANUAL[nextWhip]}x manual${state.autoWhip ? ` · ${WHIP_AUTO_RATE[nextWhip]}/sec` : ''}`;
+        : `${WHIP_NAMES[nextWhip]} · ${WHIP_MANUAL[nextWhip]}x manual${state.autoWhips > 0 ? ` · ${WHIP_AUTO_RATE[nextWhip] * state.autoWhips}/sec` : ''}`;
     refs.whipCost.textContent = state.whipTier === 4 ? 'MAX' : fmt(whipCost);
     const autoLocked = state.lifetimeTokens < AUTO_WHIP_UNLOCK || state.whipTier === 0;
-    setBuyState(refs.autoButton, !state.autoWhip && !autoLocked && state.tokens >= AUTO_WHIP_COST, autoLocked, state.autoWhip);
-    refs.autoDetail.textContent = state.autoWhip ? `${getAutoRatePerDesk(state)} prompts/sec per unlocked desk`
-      : autoLocked ? 'Unlock at 10K lifetime Tokens + Common Whip' : 'Prompt every unlocked desk hands-free';
-    refs.autoCost.textContent = state.autoWhip ? 'ON' : fmt(AUTO_WHIP_COST);
-    const now = Date.now();
-    refs.abilityRow.classList.toggle('has-abilities', state.skills.agi || state.skills.asi || state.skills.tibo);
+    const autoCost = getAutoWhipCost(state);
+    setBuyState(refs.autoButton, !autoLocked && state.tokens >= autoCost, autoLocked, state.autoWhips === 5);
+    refs.autoDetail.textContent = state.autoWhips === 5 ? `${getAutoRatePerDesk(state)} prompts/sec per unlocked desk · maximum`
+      : autoLocked ? 'Unlock at 10K lifetime Tokens + Common Whip'
+        : `Auto Whips ${state.autoWhips}/5 · next adds ${WHIP_AUTO_RATE[state.whipTier]} prompts/sec`;
+    refs.autoCost.textContent = state.autoWhips === 5 ? 'MAX' : fmt(autoCost);
+    refs.abilityRow.classList.toggle('has-abilities', state.skills.agi > 0 || state.skills.asi > 0 || state.skills.tibo > 0);
     for (const id of ['agi', 'asi', 'tibo'] as AbilityId[]) {
       const button = refs.abilities[id];
       button.hidden = !state.skills[id];
@@ -373,17 +389,20 @@ export function createUI(root: HTMLElement, actions: UIActions): {
     refs.goal.textContent = next === 1e12 ? 'All skills revealed' : `${fmt(next)} lifetime Tokens`;
     refs.progress.textContent = `${fmt(state.lifetimeTokens)} / ${fmt(next)} earned`;
     refs.progressFill.style.width = `${progress}%`;
-    refs.skillOpen.textContent = `✦ Skill Tree · ${SKILLS.filter((skill) => state.skills[skill.id]).length}/${SKILLS.length}`;
+    const skillStars = SKILLS.reduce((sum, skill) => sum + state.skills[skill.id], 0);
+    refs.skillOpen.textContent = `✦ Skill Tree · ${skillStars}/40★`;
     for (const skill of SKILLS) {
       const item = refs.skillRefs[skill.id];
-      const owned = state.skills[skill.id];
+      const level = state.skills[skill.id];
+      const owned = level === 5;
       const unlocked = state.lifetimeTokens >= skill.threshold;
-      const prerequisite = !skill.requires || state.skills[skill.requires];
+      const prerequisite = !skill.requires || state.skills[skill.requires] > 0;
       const affordable = canBuySkill(state, skill.id);
       setBuyState(item.button, affordable, !unlocked || !prerequisite, owned);
-      item.status.textContent = owned ? 'OWNED' : !unlocked ? `Unlock at ${fmt(skill.threshold)} lifetime Tokens`
-        : !prerequisite ? `Requires ${SKILLS.find((s) => s.id === skill.requires)?.name}` : 'Ready to research';
-      item.cost.textContent = owned ? '✓' : fmt(skill.cost);
+      item.status.textContent = !unlocked ? `Unlock at ${fmt(skill.threshold)} lifetime Tokens`
+        : !prerequisite ? `Requires ${SKILLS.find((s) => s.id === skill.requires)?.name}`
+          : `${'★'.repeat(level)}${'☆'.repeat(5 - level)}${owned ? ' · MAX' : ` · Star ${level + 1}`}`;
+      item.cost.textContent = owned ? 'MAX' : fmt(getSkillCost(state, skill.id));
     }
     refs.soundButton.textContent = state.soundEnabled ? '♪ Sound on' : '♪ Sound off';
     refs.motionButton.textContent = state.reducedMotion ? '✧ Motion reduced' : '✧ Motion on';

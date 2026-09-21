@@ -1,6 +1,6 @@
 # Token Office
 
-A fictional idle game about prompting ten animated model desks. Click a desk or press Space anywhere to earn Tokens. Upgrade each model's stars and plan, buy the Whip and Auto Whip, then unlock the skill tree. The short design is in [PLAN.md](PLAN.md). No real AI requests are made.
+A fictional idle game about prompting ten animated model desks. Click a desk or press Space anywhere to earn Tokens. Start with open-weight models, upgrade plans and stars, collect five Auto Whips, then raise every skill to five stars. AGI, ASI, and Tibo trigger full-screen effects. The game includes looping procedural music and unlock sounds. The short design is in [PLAN.md](PLAN.md). No real AI requests are made.
 
 ## Play locally
 
