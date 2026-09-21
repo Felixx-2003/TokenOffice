@@ -2,7 +2,7 @@ import './style.css';
 import {
   activateAbility, advanceTime, buyAutoWhip, buyModel, buyPlan, buySkill,
   buyStar, buyWhip, createInitialState, getAutoWhipCost, getLevel, getModel,
-  getPlanCost, getSkill, getSkillCost, getStarCost, getWhipCost, prompt,
+  getPlanCost, getSkill, getSkillCost, getStarCost, getWhipCost, MODELS, prompt,
   type AbilityId, type GameState, type ModelId, type SkillId,
 } from './game';
 import { clearGame, loadGame, saveGame } from './storage';
@@ -19,7 +19,11 @@ state = initialAdvance.state;
 let audioContext: AudioContext | undefined;
 let musicTimer: number | undefined;
 let musicStep = 0;
-const musicNotes = [196, 247, 294, 330, 294, 247, 220, 262, 330, 392, 330, 262];
+const melody = [330, 392, 440, 494, 440, 392, 330, 294, 330, 392, 523, 494, 440, 392, 330, 294];
+const chordRoots = [165, 131, 147, 110];
+const whipAudio = new Audio('/whip-crack.mp3');
+whipAudio.preload = 'auto';
+whipAudio.volume = 0.7;
 
 function context(): AudioContext | undefined {
   try {
@@ -44,11 +48,32 @@ function playTone(frequency: number, duration = 0.08, volume = 0.045, delay = 0,
   oscillator.stop(start + duration);
 }
 
+function playKick(): void {
+  const audio = context();
+  if (!audio) return;
+  const oscillator = audio.createOscillator();
+  const gain = audio.createGain();
+  oscillator.type = 'sine';
+  oscillator.frequency.setValueAtTime(105, audio.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(42, audio.currentTime + 0.13);
+  gain.gain.setValueAtTime(0.055, audio.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.14);
+  oscillator.connect(gain).connect(audio.destination);
+  oscillator.start();
+  oscillator.stop(audio.currentTime + 0.15);
+}
+
 function musicBeat(): void {
   if (!state.soundEnabled) return;
-  const note = musicNotes[musicStep % musicNotes.length];
-  playTone(note, 0.28, 0.012, 0, musicStep % 4 === 0 ? 'triangle' : 'sine');
-  if (musicStep % 4 === 0) playTone(note / 2, 0.5, 0.007, 0, 'sine');
+  const beat = musicStep % 16;
+  const note = melody[beat];
+  playTone(note, 0.3, beat % 2 === 0 ? 0.035 : 0.025, 0, 'triangle');
+  if (beat % 2 === 0) playTone(chordRoots[Math.floor(beat / 4)] / 2, 0.55, 0.025, 0, 'sine');
+  if (beat % 4 === 0) {
+    const root = chordRoots[Math.floor(beat / 4)];
+    [1, 1.25, 1.5].forEach((ratio) => playTone(root * ratio, 1.3, 0.014, 0, 'sine'));
+    playKick();
+  }
   musicStep += 1;
 }
 
@@ -69,6 +94,13 @@ function sound(frequency: number): void {
   playTone(frequency, 0.08, 0.045, 0, 'square');
 }
 
+function whipSound(): void {
+  if (!state.soundEnabled) return;
+  startMusic();
+  whipAudio.currentTime = 0;
+  void whipAudio.play().catch(() => { /* The next interaction can retry audio playback. */ });
+}
+
 function unlockSound(): void {
   if (!state.soundEnabled) return;
   startMusic();
@@ -82,20 +114,41 @@ function abilitySound(id: AbilityId): void {
   notes.forEach((note, index) => playTone(note, 0.4, 0.055, index * 0.06, id === 'agi' ? 'sawtooth' : 'triangle'));
 }
 
-function apply(next: GameState, tone: number, unlocked = false): boolean {
+function apply(next: GameState, tone?: number, unlocked = false): boolean {
   if (next === state) return false;
   const level = getLevel(state);
   state = next;
   ui.render(state);
   saveGame(state);
-  if (unlocked || getLevel(state) > level) unlockSound(); else sound(tone);
+  if (unlocked || getLevel(state) > level) unlockSound();
+  else if (tone !== undefined) sound(tone);
   return true;
 }
 
 function sendPrompt(id = state.selectedModel): void {
   const previousTokens = state.tokens;
   const next = prompt(state, id);
-  if (apply(next, 470)) ui.flashPrompt(id, next.tokens - previousTokens);
+  if (apply(next)) {
+    ui.flashPrompt(id, next.tokens - previousTokens);
+    whipSound();
+  }
+}
+
+function sendPromptAll(): void {
+  const selected = state.selectedModel;
+  let next = state;
+  const gains: Array<{ id: ModelId; amount: number }> = [];
+  for (const model of MODELS) {
+    if (!next.models[model.id].unlocked) continue;
+    const previousTokens = next.tokens;
+    next = prompt(next, model.id);
+    gains.push({ id: model.id, amount: next.tokens - previousTokens });
+  }
+  next = { ...next, selectedModel: selected };
+  if (apply(next)) {
+    gains.forEach(({ id, amount }) => ui.flashPrompt(id, amount));
+    whipSound();
+  }
 }
 
 const ui = createUI(root, {
@@ -141,7 +194,9 @@ const ui = createUI(root, {
   },
 });
 
-installPlayShortcut(window, () => sendPrompt());
+installPlayShortcut(window, sendPromptAll);
+window.addEventListener('pointerdown', () => startMusic(), true);
+window.addEventListener('keydown', () => startMusic(), true);
 ui.render(state);
 if (initialAdvance.earned > 0 && initialAdvance.elapsedMs >= 30_000) ui.showOffline(initialAdvance.earned, initialAdvance.elapsedMs);
 saveGame(state);

@@ -67,6 +67,7 @@ type UIRefs = {
   toast: HTMLElement;
   milestone: HTMLElement;
   tiboReset: HTMLElement;
+  agiFrame: HTMLElement;
 };
 
 function fmt(value: number): string {
@@ -95,13 +96,9 @@ function makeDesk(id: ModelId, action: () => void): DeskRefs {
     <span class="desk-lamp" aria-hidden="true"></span>
     <span class="desk-monitor" aria-hidden="true"><span class="desk-screen"><b>${meta.initials}</b><i></i><i></i><i></i></span></span>
     <span class="helper-rig" aria-hidden="true">
-      <span class="helper-arm"></span><span class="helper-fist"><i></i></span>
+      <span class="helper-fist"><i></i></span>
       <svg class="helper-whip" viewBox="0 0 94 72" focusable="false">
-        <path class="whip-handle" d="M74 18 L60 31" />
-        <path class="whip-cord whip-wind" d="M61 30 C42 17, 17 18, 20 39 C23 56, 48 51, 40 68" />
-        <path class="whip-cord whip-throw" d="M61 30 C43 27, 28 29, 6 20" />
-        <path class="whip-cord whip-snap" d="M61 30 C40 34, 21 50, 3 66" />
-        <circle class="whip-tip" cx="3" cy="66" r="3" />
+        <path class="whip-cord" d="M66 25 C48 8, 20 11, 27 34 C33 52, 12 55, 4 67" />
       </svg>
       <b class="whip-count"></b>
     </span>
@@ -147,9 +144,9 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   const main = el('main', 'main-layout');
   const playArea = el('section', 'play-area');
   const instruction = el('p', 'instruction');
-  instruction.textContent = 'Click an unlocked desk or press Space to prompt. Buy desks, then upgrade each model’s stars and plan.';
+  instruction.textContent = 'Click one desk to prompt it. Press Space to whip every unlocked model at once.';
   const scene = el('div', 'office-scene');
-  scene.innerHTML = '<div class="office-windows"><i></i><i></i><i></i><i></i></div><div class="office-title">THE TOKEN FLOOR <span>● LIVE</span></div><div class="agi-heat"><i></i><i></i><i></i><i></i><i></i></div><div class="asi-storm"><i></i><i></i><i></i></div><div class="office-grid"></div><div class="office-floor"></div>';
+  scene.innerHTML = '<div class="office-windows"><i></i><i></i><i></i><i></i></div><div class="office-title">THE TOKEN FLOOR <span>● LIVE</span></div><div class="asi-storm"><i></i><i></i><i></i></div><div class="office-grid"></div><div class="office-floor"></div>';
   const grid = scene.querySelector('.office-grid') as HTMLElement;
   const desks = Object.fromEntries(MODEL_IDS.map((id) => {
     const refs = makeDesk(id, () => actions.onDesk(id));
@@ -239,8 +236,11 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   milestone.setAttribute('role', 'status');
   const tiboReset = el('div', 'tibo-reset');
   tiboReset.innerHTML = '<span class="tibo-rays"></span><img src="/tibo.webp" alt="Tibo"><strong>TIBO RESET</strong><b>AGI + ASI ACTIVATED</b>';
+  const agiFrame = el('div', 'agi-frame');
+  agiFrame.setAttribute('aria-hidden', 'true');
+  agiFrame.innerHTML = '<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>';
   main.append(playArea, panel);
-  app.append(header, main, skillOverlay, tiboReset, toast, milestone);
+  app.append(header, main, skillOverlay, agiFrame, tiboReset, toast, milestone);
   root.append(app);
   return {
     tokens: header.querySelector('.token-value') as HTMLElement,
@@ -265,7 +265,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
     progress: goalCard.querySelector('.goal-progress') as HTMLElement,
     progressFill: goalCard.querySelector('.progress-fill') as HTMLElement,
     skillOpen, skillOverlay, skillRefs,
-    soundButton, motionButton, resetButton, toast, milestone, tiboReset,
+    soundButton, motionButton, resetButton, toast, milestone, tiboReset, agiFrame,
   };
 }
 
@@ -321,6 +321,7 @@ export function createUI(root: HTMLElement, actions: UIActions): {
     refs.scene.classList.toggle('effect-asi', now < state.effects.asiUntil);
     refs.scene.classList.toggle('effect-tibo', now < state.effects.tiboUntil);
     refs.tiboReset.classList.toggle('is-visible', now < state.effects.tiboUntil);
+    refs.agiFrame.classList.toggle('is-visible', now < state.effects.agiUntil);
     refs.scene.style.setProperty('--auto-duration', `${Math.max(.18, 1 / Math.max(.5, getAutoRatePerDesk(state)))}s`);
     for (const meta of MODELS) {
       const model = state.models[meta.id];
@@ -344,7 +345,7 @@ export function createUI(root: HTMLElement, actions: UIActions): {
     refs.selectedName.textContent = selected.name;
     refs.selectedMeta.textContent = `${selection.stars}★ · ${selected.openWeight ? 'Open weight · ' : ''}${PLAN_NAMES[selection.plan]}`;
     refs.selectedYield.textContent = `${tokenText(getModelYield(state, selected.id))} per model prompt`;
-    refs.promptValue.textContent = `+${tokenText(manual)} · Space`;
+    refs.promptValue.textContent = `+${tokenText(manual)} · selected desk`;
     const starCost = getStarCost(state, selected.id);
     const nextStars = Math.min(5, selection.stars + 1);
     const canStar = state.tokens >= starCost;
