@@ -1,6 +1,6 @@
 # Token Circus — Stage 2
 
-1. Crack the Prompt Whip or press Space to generate Tokens and build Audience Hype.
+1. Press Space or crack the Prompt Whip to make every hired model perform together, generate Tokens, and build Audience Hype.
 2. Recruit ten AI acts: Llama, Qwen, Mistral, DeepSeek, GLM, Kimi, Grok, Gemini, Claude, and ChatGPT.
 3. Improve each act with ten Trick Levels and five costume tiers, from Cardboard to Questionably Expensive.
 4. Fill the Hype Meter to trigger a twelve-second Standing Ovation worth triple output.

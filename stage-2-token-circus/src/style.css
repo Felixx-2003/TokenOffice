@@ -301,11 +301,15 @@ button:disabled { cursor: not-allowed; filter: grayscale(0.55); opacity: 0.43; }
 @keyframes sway { to { transform: translateX(7%) rotate(4deg); } }
 @keyframes performer-bounce { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-9px) rotate(3deg); } }
 @keyframes prompted { 0% { transform: scale(1); } 35% { transform: scale(1.32) rotate(12deg); } 100% { transform: scale(1); } }
+@keyframes troupe-pop { 0% { transform: scale(1) rotate(0); } 40% { transform: scale(1.3) rotate(-10deg); filter: drop-shadow(0 0 8px var(--gold)); } 100% { transform: scale(1) rotate(0); } }
 @keyframes ovation-glow { from { box-shadow: 0 0 14px var(--cyan), inset 0 0 30px rgba(56,232,255,0.15); } to { box-shadow: 0 0 34px var(--gold), inset 0 0 55px rgba(255,213,74,0.22); } }
 @keyframes finale-ready { to { transform: rotate(0.5deg) scale(1.01); } }
 @keyframes gain-float { to { transform: translateY(-70px) rotate(-6deg); opacity: 0; } }
 @keyframes confetti-fall { to { transform: translate(var(--drift), 110vh) rotate(720deg); } }
 @keyframes affordable-pulse { from { filter: brightness(1); } to { filter: brightness(1.28); } }
+
+.performer-grid.all-performing .performer-card:not(.locked) .performer-emoji { animation: troupe-pop 0.48s ease-out; }
+.performer-grid.all-performing .performer-card:nth-child(even) .performer-emoji { animation-delay: 0.04s; }
 
 @media (min-width: 1121px) and (min-height: 680px) {
   body { overflow: hidden; }

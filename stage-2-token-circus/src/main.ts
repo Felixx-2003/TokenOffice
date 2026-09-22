@@ -4,7 +4,7 @@ import {
   advanceTime, buyCostume, buyPerformer, buyTrick, buyUpgrade, crackWhip,
   createInitialState, curtainCall, fireGreatTokenCannon, getCostumeCost,
   getFinaleProgress, getNextObjective, getPerformerCost, getPerformerRate,
-  getProduction, getTicketGain, getTrickCost, getUpgradeCost, getVenue,
+  getProduction, getTicketGain, getTrickCost, getTroupePromptValue, getUpgradeCost, getVenue,
   getWhipValue, promptPerformer,
   type CircusEvent, type PerformerId, type UpgradeId,
 } from './game';
@@ -66,10 +66,10 @@ root.innerHTML = `
             <p id="stageAct">Jumps through token hoops</p>
             <button id="performButton" class="perform-button" type="button">PROMPT THIS MODEL</button>
           </div>
-          <button id="whipButton" class="whip-button" type="button" aria-label="Crack the prompt whip">
+          <button id="whipButton" class="whip-button" type="button" aria-label="Make all hired models perform">
             <span class="whip-icon">⚡</span>
-            <strong>CRACK PROMPT WHIP</strong>
-            <small>SPACE · <b id="whipYield">+1 Token</b></small>
+            <strong>ALL MODELS: PERFORM!</strong>
+            <small>SPACE · FULL TROUPE · <b id="whipYield">+1 Token</b></small>
           </button>
           <div class="ring-floor" aria-hidden="true"></div>
         </div>
@@ -90,7 +90,7 @@ root.innerHTML = `
       <section class="roster-column" aria-label="AI performer roster">
         <div class="section-heading">
           <div><span>THE QUESTIONABLE TALENT</span><h1>AI PERFORMERS</h1></div>
-          <p>Click an act to put it in the ring. Buy doubles because employment law is complicated.</p>
+          <p>Press Space for everyone. Click one act for a solo prompt.</p>
         </div>
         <div id="performerGrid" class="performer-grid"></div>
       </section>
@@ -143,7 +143,7 @@ root.innerHTML = `
         <span class="guide-kicker">HOW TO PLAY · <b id="guideStepCount">1 / 4</b></span>
         <div id="guideIcon" class="guide-icon" aria-hidden="true">⚡</div>
         <h2 id="guideTitle">Make Tokens</h2>
-        <p id="guideText">Press SPACE or click the red Prompt Whip. You get Tokens.</p>
+        <p id="guideText">Press SPACE for every hired model to perform together. You get Tokens.</p>
         <div id="guideDots" class="guide-dots" aria-hidden="true"></div>
         <div class="guide-actions">
           <button id="guideBack" type="button">BACK</button>
@@ -211,7 +211,7 @@ class CircusAudio {
 const audio = new CircusAudio();
 
 const guideSteps = [
-  { icon: '⚡', title: 'Make Tokens', text: 'Press SPACE or click the red Prompt Whip. You get Tokens.' },
+  { icon: '⚡', title: 'Make Tokens', text: 'Press SPACE for every hired model to perform together. You get Tokens.' },
   { icon: '🎪', title: 'Buy Better Acts', text: 'Buttons glow when you can buy them. Recruit models and buy upgrades.' },
   { icon: '👏', title: 'Fill the Hype Meter', text: 'At 100% Hype, you get 3× Tokens for 12 seconds.' },
   { icon: '🏆', title: 'How to Win', text: 'Get 25 Golden Tickets, 5 Cannons, and Legendary costumes for all 10 models. Then fire the Great Token Cannon.' },
@@ -307,6 +307,11 @@ const doPrompt = (performerId?: PerformerId): void => {
   floatGain(gained);
   byId<HTMLDivElement>('circusRing').classList.remove('cracked');
   requestAnimationFrame(() => byId<HTMLDivElement>('circusRing').classList.add('cracked'));
+  if (!performerId) {
+    performerGrid.classList.remove('all-performing');
+    requestAnimationFrame(() => performerGrid.classList.add('all-performing'));
+    window.setTimeout(() => performerGrid.classList.remove('all-performing'), 520);
+  }
   if (!wasOvation && state.ovationUntil > Date.now()) {
     makeConfetti(48);
     audio.fanfare();
@@ -334,7 +339,7 @@ const render = (): void => {
   byId('tokenValue').textContent = fmt(state.tokens);
   byId('rateValue').textContent = `+${fmt(production)} / sec`;
   byId('venueLabel').textContent = getVenue(state);
-  byId('whipYield').textContent = `+${fmt(getWhipValue(state, now))} Tokens`;
+  byId('whipYield').textContent = `+${fmt(getTroupePromptValue(state, now))} Tokens`;
   byId('hypeLabel').textContent = `${Math.floor(state.hype)}%`;
   byId<HTMLElement>('hypeFill').style.width = `${state.hype}%`;
 
@@ -350,7 +355,7 @@ const render = (): void => {
   byId('stageAct').textContent = selectedOwned ? selected.act : `Recruit ${selected.name} before demanding unpaid tricks.`;
   const performButton = byId<HTMLButtonElement>('performButton');
   performButton.disabled = !selectedOwned;
-  performButton.textContent = selectedOwned ? 'PROMPT THIS MODEL' : 'MODEL NOT ON PAYROLL';
+  performButton.textContent = selectedOwned ? 'PROMPT ONLY THIS MODEL' : 'MODEL NOT ON PAYROLL';
 
   const ovationActive = state.ovationUntil > now;
   byId('ovationBanner').classList.toggle('active', ovationActive);

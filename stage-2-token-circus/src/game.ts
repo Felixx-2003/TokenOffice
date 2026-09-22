@@ -131,6 +131,9 @@ export const getWhipValue = (state: GameState, now = Date.now()): number => {
   return base * spotlight * ensemble * getTicketMultiplier(state) * getOvationMultiplier(state, now) * getEventMultiplier(state, now);
 };
 
+export const getTroupePromptValue = (state: GameState, now = Date.now()): number =>
+  getWhipValue(state, now) + getProduction(state, now) * 0.35;
+
 const addTokens = (state: GameState, amount: number): number => {
   const safeAmount = Math.max(0, amount);
   state.tokens += safeAmount;
@@ -146,7 +149,7 @@ const triggerOvation = (state: GameState, now: number): void => {
 };
 
 export const crackWhip = (state: GameState, now = Date.now()): number => {
-  const gained = addTokens(state, getWhipValue(state, now));
+  const gained = addTokens(state, getTroupePromptValue(state, now));
   state.promptCount += 1;
   state.hype = Math.min(100, state.hype + 7 + state.spotlight * 0.3);
   triggerOvation(state, now);
