@@ -32,4 +32,4 @@ Run `npm install` and `npm run build` from this repository root. The combined st
 - `/` serves Stage 1 — Token Office.
 - `/stage-2/` serves Stage 2 — Signal Foundry.
 
-For Cloudflare Workers Builds or Pages, use `npm run build` as the build command and `dist` as the output directory.
+For Cloudflare Workers Builds, keep the repository root as the root directory, use `npm run build` as the build command, and use `npx wrangler deploy` as the deploy command. The root `wrangler.jsonc` publishes the combined `dist/` directory to the `tokenoffice` Worker.
