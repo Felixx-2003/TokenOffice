@@ -4,13 +4,13 @@
   "private": true,
   "workspaces": [
     "stage-1-token-office",
-    "stage-2-signal-foundry"
+    "stage-2-token-circus"
   ],
   "scripts": {
     "dev:stage1": "npm run dev --workspace token-office",
-    "dev:stage2": "npm run dev --workspace signal-foundry",
+    "dev:stage2": "npm run dev --workspace token-circus",
     "build:stage1": "npm run build --workspace token-office",
-    "build:stage2": "npm run build --workspace signal-foundry -- --base=./",
+    "build:stage2": "npm run build --workspace token-circus -- --base=./",
     "build": "npm run build:stage1 && npm run build:stage2 && node scripts/assemble-dist.mjs"
   }
 }

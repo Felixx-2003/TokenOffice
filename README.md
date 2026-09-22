@@ -1,35 +1,32 @@
 # Incremental Game Series
 
-Two standalone incremental games live in this repository:
+Two standalone incremental games live in one GitHub repository:
 
-- **Stage 1 — Token Office:** Prompt model desks, unlock automation, and upgrade an absurd AI office.
-- **Stage 2 — Signal Foundry:** Tune deep-space signals, build a relay fleet, trigger Resonance, and Fold runs into permanent Echo power.
+- **Stage 1 — Token Office:** prompt model desks, unlock automation, and upgrade an absurd AI office.
+- **Stage 2 — Token Circus:** crack a Prompt Whip, recruit AI performers, trigger Standing Ovations, and turn successful shows into permanent Golden Tickets.
 
-Each stage has its own source, dependencies, save data, and production build. Run commands from the stage folder you want to play.
+Each stage has separate source code and browser save data while sharing one production build.
 
 ## Play locally
 
-```text
-cd stage-1-token-office
-npm install
-npm run dev
-```
-
-Or:
+Run from the repository root:
 
 ```text
-cd stage-2-signal-foundry
 npm install
-npm run dev
+npm run dev:stage1
 ```
 
-The stages use different browser save keys, so their progress remains separate.
+Or start Stage 2:
+
+```text
+npm run dev:stage2
+```
 
 ## Production build
 
-Run `npm install` and `npm run build` from this repository root. The combined static output is written to `dist/`:
+Run `npm run build` from the repository root. The combined static output is written to `dist/`:
 
 - `/` serves Stage 1 — Token Office.
-- `/stage-2/` serves Stage 2 — Signal Foundry.
+- `/stage-2/` serves Stage 2 — Token Circus.
 
 For Cloudflare Workers Builds, keep the repository root as the root directory, use `npm run build` as the build command, and use `npx wrangler deploy` as the deploy command. The root `wrangler.jsonc` publishes the combined `dist/` directory to the `tokenoffice` Worker.
