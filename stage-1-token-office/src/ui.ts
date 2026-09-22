@@ -137,6 +137,7 @@ function buildRefs(root: HTMLElement, actions: UIActions): UIRefs {
   header.innerHTML = `
     <div class="brand"><span class="brand-mark">⌘</span> TOKEN <b>OFFICE</b><small>fictional idle game</small></div>
     <div class="top-stats"><strong class="token-value">0</strong><span>Tokens</span><i></i><span class="rate-value">0/sec</span><span class="level-value">Lv 1</span></div>
+    <a class="stage-link" href="/stage-2/">STAGE 2 →</a>
   `;
   const main = el('main', 'main-layout');
   const playArea = el('section', 'play-area');

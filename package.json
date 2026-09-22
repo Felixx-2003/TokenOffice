@@ -1,15 +1,16 @@
 {
-  "name": "token-office",
-  "version": "0.1.0",
+  "name": "incremental-game-series",
+  "version": "1.0.0",
   "private": true,
-  "type": "module",
+  "workspaces": [
+    "stage-1-token-office",
+    "stage-2-signal-foundry"
+  ],
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 127.0.0.1"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.3",
-    "vite": "^7.1.0"
+    "dev:stage1": "npm run dev --workspace token-office",
+    "dev:stage2": "npm run dev --workspace signal-foundry",
+    "build:stage1": "npm run build --workspace token-office",
+    "build:stage2": "npm run build --workspace signal-foundry -- --base=./",
+    "build": "npm run build:stage1 && npm run build:stage2 && node scripts/assemble-dist.mjs"
   }
 }

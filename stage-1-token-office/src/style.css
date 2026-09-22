@@ -29,6 +29,8 @@ button:disabled { cursor: not-allowed; }
 .top-stats i { width: 1px; height: 15px; margin: 0 5px; background: #58677c; }
 .top-stats .rate-value { color: #79e6ad; }
 .top-stats .level-value { margin-left: 7px; padding: 4px 7px; border: 1px solid #52677c; border-radius: 6px; color: #dceaf4; }
+.stage-link { padding: 7px 9px; border: 1px solid #52677c; border-radius: 7px; color: #8fffd0; background: #18283a; font: 700 10px 'DM Mono', monospace; letter-spacing: .06em; text-decoration: none; white-space: nowrap; }
+.stage-link:hover { border-color: #79e6ad; background: #213b3d; }
 .main-layout { display: grid; min-height: 0; height: calc(100vh - 55px); grid-template-columns: minmax(0, 1.55fr) minmax(315px, .7fr); gap: 14px; padding: 11px 0 12px; }
 .play-area, .control-panel { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
 .instruction { margin: 0 0 8px; color: #c3d0dc; font-size: 12px; line-height: 1.35; }
@@ -254,6 +256,7 @@ button:disabled { cursor: not-allowed; }
   .settings { margin-top: 2px; }
 }
 @media (max-width: 520px) {
+  .stage-link { display: none; }
   .top-stats { gap: 3px; font-size: 9px; }
   .top-stats .level-value { display: none; }
   .office-scene { height: 660px; }

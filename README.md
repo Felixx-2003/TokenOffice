@@ -1,11 +1,35 @@
-# Token Office
+# Incremental Game Series
 
-A fictional idle game about prompting ten animated model desks. Click a desk or press Space anywhere to earn Tokens. Start with open-weight models, upgrade plans and stars, collect five Auto Whips, then raise every skill to five stars. AGI, ASI, and Tibo trigger full-screen effects. The game includes looping procedural music and unlock sounds. The short design is in [PLAN.md](PLAN.md). No real AI requests are made.
+Two standalone incremental games live in this repository:
+
+- **Stage 1 — Token Office:** Prompt model desks, unlock automation, and upgrade an absurd AI office.
+- **Stage 2 — Signal Foundry:** Tune deep-space signals, build a relay fleet, trigger Resonance, and Fold runs into permanent Echo power.
+
+Each stage has its own source, dependencies, save data, and production build. Run commands from the stage folder you want to play.
 
 ## Play locally
 
-1. Install [Node.js](https://nodejs.org/) 20.19+ or 22.12+.
-2. Run `npm install` (`npm.cmd install` in Windows PowerShell if script execution is blocked).
-3. Run `npm run dev` (`npm.cmd run dev` in that PowerShell case) and open the address Vite prints, usually `http://127.0.0.1:5173/`.
+```text
+cd stage-1-token-office
+npm install
+npm run dev
+```
 
-Opening `index.html` directly is not supported because the game uses Vite. A new game starts with 0 Tokens and saves locally in this browser. Run `npm run build` for a static production bundle in `dist/`.
+Or:
+
+```text
+cd stage-2-signal-foundry
+npm install
+npm run dev
+```
+
+The stages use different browser save keys, so their progress remains separate.
+
+## Production build
+
+Run `npm install` and `npm run build` from this repository root. The combined static output is written to `dist/`:
+
+- `/` serves Stage 1 — Token Office.
+- `/stage-2/` serves Stage 2 — Signal Foundry.
+
+For Cloudflare Workers Builds or Pages, use `npm run build` as the build command and `dist` as the output directory.
