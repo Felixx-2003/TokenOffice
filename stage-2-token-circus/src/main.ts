@@ -39,6 +39,7 @@ root.innerHTML = `
       </div>
       <div class="top-actions">
         <a class="stage-link" href="/">← TOKEN OFFICE</a>
+        <button id="guideButton" class="utility-button guide-button" type="button">? HOW TO PLAY</button>
         <button id="soundButton" class="utility-button" type="button">SOUND ON</button>
         <button id="resetButton" class="utility-button danger" type="button">RESET</button>
       </div>
@@ -136,6 +137,20 @@ root.innerHTML = `
     </main>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <div id="confetti" class="confetti" aria-hidden="true"></div>
+    <div id="guideOverlay" class="guide-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+      <section class="guide-dialog">
+        <button id="guideClose" class="guide-close" type="button" aria-label="Close how to play">×</button>
+        <span class="guide-kicker">HOW TO PLAY · <b id="guideStepCount">1 / 4</b></span>
+        <div id="guideIcon" class="guide-icon" aria-hidden="true">⚡</div>
+        <h2 id="guideTitle">Make Tokens</h2>
+        <p id="guideText">Press SPACE or click the red Prompt Whip. You get Tokens.</p>
+        <div id="guideDots" class="guide-dots" aria-hidden="true"></div>
+        <div class="guide-actions">
+          <button id="guideBack" type="button">BACK</button>
+          <button id="guideNext" type="button">NEXT</button>
+        </div>
+      </section>
+    </div>
   </div>
 `;
 
@@ -185,12 +200,47 @@ class CircusAudio {
     oscillator.stop(this.context.currentTime + duration);
   }
   whip(): void { this.tone(560, 0.05, 'sawtooth'); window.setTimeout(() => this.tone(900, 0.07), 35); }
-  buy(): void { this.tone(440, 0.08); window.setTimeout(() => this.tone(660, 0.08), 70); }
+  buy(): void {
+    [784, 1047, 1319].forEach((note, index) => window.setTimeout(() => this.tone(note, 0.16, 'triangle'), index * 65));
+    window.setTimeout(() => this.tone(2093, 0.22, 'sine'), 210);
+  }
   fail(): void { this.tone(120, 0.12, 'sawtooth'); }
   fanfare(): void { [523, 659, 784, 1047].forEach((note, index) => window.setTimeout(() => this.tone(note, 0.18, 'triangle'), index * 90)); }
 }
 
 const audio = new CircusAudio();
+
+const guideSteps = [
+  { icon: '⚡', title: 'Make Tokens', text: 'Press SPACE or click the red Prompt Whip. You get Tokens.' },
+  { icon: '🎪', title: 'Buy Better Acts', text: 'Buttons glow when you can buy them. Recruit models and buy upgrades.' },
+  { icon: '👏', title: 'Fill the Hype Meter', text: 'At 100% Hype, you get 3× Tokens for 12 seconds.' },
+  { icon: '🏆', title: 'How to Win', text: 'Get 25 Golden Tickets, 5 Cannons, and Legendary costumes for all 10 models. Then fire the Great Token Cannon.' },
+] as const;
+let guideStep = 0;
+
+const renderGuide = (): void => {
+  const step = guideSteps[guideStep];
+  byId('guideStepCount').textContent = `${guideStep + 1} / ${guideSteps.length}`;
+  byId('guideIcon').textContent = step.icon;
+  byId('guideTitle').textContent = step.title;
+  byId('guideText').textContent = step.text;
+  byId('guideDots').innerHTML = guideSteps.map((_, index) => `<i class="${index === guideStep ? 'active' : ''}"></i>`).join('');
+  byId<HTMLButtonElement>('guideBack').disabled = guideStep === 0;
+  byId('guideNext').textContent = guideStep === guideSteps.length - 1 ? 'LET’S PLAY' : 'NEXT';
+};
+
+const openGuide = (): void => {
+  guideStep = 0;
+  renderGuide();
+  byId('guideOverlay').classList.remove('hidden');
+  byId<HTMLButtonElement>('guideNext').focus();
+};
+
+const closeGuide = (): void => {
+  byId('guideOverlay').classList.add('hidden');
+  try { localStorage.setItem('token-circus-guide-seen-v1', 'yes'); } catch { /* local storage can be disabled */ }
+  byId<HTMLButtonElement>('whipButton').focus();
+};
 
 const showToast = (message: string): void => {
   const toast = byId<HTMLDivElement>('toast');
@@ -331,9 +381,19 @@ const render = (): void => {
     const buyButton = document.querySelector<HTMLButtonElement>(`[data-buy="${performer.id}"]`);
     const trickButton = document.querySelector<HTMLButtonElement>(`[data-trick="${performer.id}"]`);
     const costumeButton = document.querySelector<HTMLButtonElement>(`[data-costume="${performer.id}"]`);
-    if (buyButton) buyButton.disabled = state.tokens < performerCost;
-    if (trickButton) trickButton.disabled = owned.count === 0 || state.tokens < trickCost;
-    if (costumeButton) costumeButton.disabled = owned.count === 0 || state.tokens < costumeCost;
+    if (buyButton) {
+      buyButton.disabled = state.tokens < performerCost;
+      buyButton.classList.toggle('affordable', !buyButton.disabled);
+    }
+    if (trickButton) {
+      trickButton.disabled = owned.count === 0 || state.tokens < trickCost;
+      trickButton.classList.toggle('affordable', !trickButton.disabled);
+    }
+    if (costumeButton) {
+      costumeButton.disabled = owned.count === 0 || state.tokens < costumeCost;
+      costumeButton.classList.toggle('affordable', !costumeButton.disabled);
+    }
+    card?.classList.toggle('has-affordable', Boolean(buyButton && !buyButton.disabled || trickButton && !trickButton.disabled || costumeButton && !costumeButton.disabled));
   }
 
   byId('whipName').textContent = WHIP_NAMES[state.whipTier];
@@ -343,19 +403,26 @@ const render = (): void => {
   (['whip', 'cannon', 'spotlight', 'audience'] as UpgradeId[]).forEach((id) => {
     byId(`${id}Cost`).textContent = cost(getUpgradeCost(state, id));
     const button = document.querySelector<HTMLButtonElement>(`[data-upgrade="${id}"]`);
-    if (button) button.disabled = state.tokens < getUpgradeCost(state, id);
+    if (button) {
+      button.disabled = state.tokens < getUpgradeCost(state, id);
+      button.classList.toggle('affordable', !button.disabled);
+    }
   });
 
   const ticketGain = getTicketGain(state);
   byId('ticketCount').textContent = fmt(state.goldenTickets);
   byId('ticketBonus').textContent = `Permanent bonus ×${(1 + state.goldenTickets * 0.08).toFixed(2)}`;
   byId('ticketGain').textContent = fmt(ticketGain);
-  byId<HTMLButtonElement>('curtainButton').disabled = ticketGain < 1;
+  const curtainButton = byId<HTMLButtonElement>('curtainButton');
+  curtainButton.disabled = ticketGain < 1;
+  curtainButton.classList.toggle('affordable', !curtainButton.disabled);
 
   const finale = getFinaleProgress(state);
   byId('finaleStatus').textContent = `${finale.legendary}/10 Legendary · ${state.cannons}/5 Cannons · ${state.goldenTickets}/25 Tickets`;
-  byId<HTMLButtonElement>('finaleButton').disabled = !finale.ready || state.completed;
-  byId<HTMLButtonElement>('finaleButton').textContent = state.completed ? 'CONTEXT CONQUERED ✓' : 'FIRE THE FINALE';
+  const finaleButton = byId<HTMLButtonElement>('finaleButton');
+  finaleButton.disabled = !finale.ready || state.completed;
+  finaleButton.classList.toggle('affordable', !finaleButton.disabled);
+  finaleButton.textContent = state.completed ? 'CONTEXT CONQUERED ✓' : 'FIRE THE FINALE';
   byId('finalePanel').classList.toggle('ready', finale.ready && !state.completed);
 };
 
@@ -419,6 +486,24 @@ byId('soundButton').addEventListener('click', () => {
   if (soundEnabled) audio.buy();
 });
 
+byId('guideButton').addEventListener('click', openGuide);
+byId('guideClose').addEventListener('click', closeGuide);
+byId('guideBack').addEventListener('click', () => {
+  guideStep = Math.max(0, guideStep - 1);
+  renderGuide();
+});
+byId('guideNext').addEventListener('click', () => {
+  if (guideStep === guideSteps.length - 1) {
+    closeGuide();
+    return;
+  }
+  guideStep += 1;
+  renderGuide();
+});
+byId('guideOverlay').addEventListener('click', (event) => {
+  if (event.target === byId('guideOverlay')) closeGuide();
+});
+
 byId('resetButton').addEventListener('click', () => {
   if (!window.confirm('Fire the entire circus and erase all Token Circus progress? Token Office is unaffected.')) return;
   clearGame();
@@ -429,6 +514,10 @@ byId('resetButton').addEventListener('click', () => {
 });
 
 window.addEventListener('keydown', (event) => {
+  if (event.code === 'Escape' && !byId('guideOverlay').classList.contains('hidden')) {
+    closeGuide();
+    return;
+  }
   if (event.code !== 'Space' || event.repeat || ['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) return;
   event.preventDefault();
   doPrompt();
@@ -452,3 +541,8 @@ window.setInterval(() => saveGame(state), 5_000);
 window.setInterval(() => { if (!state.event) triggerFunnyEvent(); }, 55_000);
 
 render();
+try {
+  if (!localStorage.getItem('token-circus-guide-seen-v1')) window.setTimeout(openGuide, 250);
+} catch {
+  window.setTimeout(openGuide, 250);
+}
