@@ -200,7 +200,7 @@ button:disabled { cursor: not-allowed; filter: grayscale(0.55); opacity: 0.43; }
 .performer-select > b { color: white; font: 900 14px/1 ui-monospace, monospace; }
 .performer-stats { display: flex; justify-content: space-between; gap: 8px; padding: 4px 7px; background: #0d0f25; color: var(--cyan); font: 700 11px/1 ui-monospace, monospace; }
 .performer-stats span:last-child { color: var(--gold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.performer-actions { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 1px; background: #34354b; border-top: 1px solid #34354b; }
+.performer-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: #34354b; border-top: 1px solid #34354b; }
 .performer-actions button { position: relative; min-width: 0; min-height: 35px; padding: 4px 3px; border: 0; background: #1a1d39; color: #d8d9e5; font: 800 10px/1 ui-monospace, monospace; cursor: pointer; }
 .performer-actions button:hover:not(:disabled) { background: #292d50; color: white; }
 .performer-actions span, .performer-actions b { display: block; margin-top: 3px; font-size: 9px; color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -227,6 +227,29 @@ button:disabled { cursor: not-allowed; filter: grayscale(0.55); opacity: 0.43; }
 }
 .performer-actions .affordable:not(:disabled) b,
 .performer-actions .affordable:not(:disabled) span { color: #fff3a5; }
+.performer-actions button[data-buy].affordable:not(:disabled) {
+  color: #04151b;
+  border-color: var(--cyan) !important;
+  background: linear-gradient(145deg, #7af4ff, #23bfd4) !important;
+  box-shadow: inset 0 0 10px rgba(255,255,255,0.3), 0 0 10px rgba(56,232,255,0.5);
+}
+.performer-actions button[data-buy].affordable:not(:disabled) b { color: #063641; }
+.performer-actions button[data-trick].affordable:not(:disabled) {
+  color: #2b1905;
+  border-color: var(--gold) !important;
+  background: linear-gradient(145deg, #ffe981, #eeb82e) !important;
+  box-shadow: inset 0 0 10px rgba(255,255,255,0.25), 0 0 10px rgba(255,213,74,0.5);
+}
+.performer-actions button[data-trick].affordable:not(:disabled) b,
+.performer-actions button[data-trick].affordable:not(:disabled) span { color: #5e3700; }
+.performer-actions button[data-costume].affordable:not(:disabled) {
+  color: white;
+  border-color: #ff6de8 !important;
+  background: linear-gradient(145deg, #f05ed7, #8b3fd0) !important;
+  box-shadow: inset 0 0 10px rgba(255,255,255,0.2), 0 0 10px rgba(240,94,215,0.5);
+}
+.performer-actions button[data-costume].affordable:not(:disabled) b,
+.performer-actions button[data-costume].affordable:not(:disabled) span { color: #fff0a8; }
 .upgrade-card.affordable::after {
   content: "AVAILABLE";
   position: absolute;
@@ -297,6 +320,7 @@ button:disabled { cursor: not-allowed; filter: grayscale(0.55); opacity: 0.43; }
 .guide-actions button:last-child { background: var(--red); box-shadow: 0 4px 0 #741229; }
 .guide-actions button:hover:not(:disabled) { color: #27150a; background: var(--gold); }
 .guide-button { border-color: rgba(56,232,255,0.55); color: var(--cyan); }
+.music-button { border-color: rgba(255,213,74,0.6); color: var(--gold); }
 
 @keyframes sway { to { transform: translateX(7%) rotate(4deg); } }
 @keyframes performer-bounce { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-9px) rotate(3deg); } }

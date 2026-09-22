@@ -40,7 +40,8 @@ root.innerHTML = `
       <div class="top-actions">
         <a class="stage-link" href="/">← TOKEN OFFICE</a>
         <button id="guideButton" class="utility-button guide-button" type="button">? HOW TO PLAY</button>
-        <button id="soundButton" class="utility-button" type="button">SOUND ON</button>
+        <button id="soundButton" class="utility-button" type="button">SFX ON</button>
+        <button id="bgmButton" class="utility-button music-button" type="button">♫ BGM ON</button>
         <button id="resetButton" class="utility-button danger" type="button">RESET</button>
       </div>
     </header>
@@ -180,32 +181,97 @@ performerGrid.innerHTML = PERFORMERS.map((performer) => `
 let { state, offlineSeconds } = loadGame();
 let selectedId: PerformerId = 'llama';
 let soundEnabled = true;
+let bgmEnabled = true;
 let lastTick = performance.now();
 let toastTimer = 0;
 let lastEventPrompt = state.promptCount;
 
 class CircusAudio {
   private context: AudioContext | null = null;
-  private tone(frequency: number, duration = 0.08, type: OscillatorType = 'square'): void {
-    if (!soundEnabled) return;
+  private bgmTimer: number | null = null;
+  private bgmStep = 0;
+  private ensureContext(): AudioContext {
     this.context ??= new AudioContext();
-    const oscillator = this.context.createOscillator();
-    const gain = this.context.createGain();
+    if (this.context.state === 'suspended') void this.context.resume();
+    return this.context;
+  }
+  private playTone(frequency: number, duration = 0.08, type: OscillatorType = 'square', volume = 0.035): void {
+    const context = this.ensureContext();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
     oscillator.type = type;
     oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(0.035, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + duration);
-    oscillator.connect(gain).connect(this.context.destination);
+    gain.gain.setValueAtTime(volume, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+    oscillator.connect(gain).connect(context.destination);
     oscillator.start();
-    oscillator.stop(this.context.currentTime + duration);
+    oscillator.stop(context.currentTime + duration);
   }
-  whip(): void { this.tone(560, 0.05, 'sawtooth'); window.setTimeout(() => this.tone(900, 0.07), 35); }
+  private tone(frequency: number, duration = 0.08, type: OscillatorType = 'square'): void {
+    if (!soundEnabled) return;
+    this.playTone(frequency, duration, type);
+  }
+  private noiseCrack(): void {
+    if (!soundEnabled) return;
+    const context = this.ensureContext();
+    const length = Math.floor(context.sampleRate * 0.075);
+    const buffer = context.createBuffer(1, length, context.sampleRate);
+    const channel = buffer.getChannelData(0);
+    for (let index = 0; index < length; index += 1) channel[index] = (Math.random() * 2 - 1) * (1 - index / length);
+    const source = context.createBufferSource();
+    const filter = context.createBiquadFilter();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    filter.type = 'highpass';
+    filter.frequency.value = 900;
+    gain.gain.setValueAtTime(0.14, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.075);
+    source.connect(filter).connect(gain).connect(context.destination);
+    source.start();
+  }
+  private sweep(from: number, to: number, duration: number): void {
+    if (!soundEnabled) return;
+    const context = this.ensureContext();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(from, context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(to, context.currentTime + duration);
+    gain.gain.setValueAtTime(0.045, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + duration);
+  }
+  whip(): void {
+    this.noiseCrack();
+    this.sweep(1_800, 150, 0.1);
+    window.setTimeout(() => this.tone(110, 0.08, 'square'), 45);
+  }
   buy(): void {
     [784, 1047, 1319].forEach((note, index) => window.setTimeout(() => this.tone(note, 0.16, 'triangle'), index * 65));
     window.setTimeout(() => this.tone(2093, 0.22, 'sine'), 210);
   }
   fail(): void { this.tone(120, 0.12, 'sawtooth'); }
   fanfare(): void { [523, 659, 784, 1047].forEach((note, index) => window.setTimeout(() => this.tone(note, 0.18, 'triangle'), index * 90)); }
+  startBgm(): void {
+    if (!bgmEnabled || this.bgmTimer !== null) return;
+    const melody = [523, 659, 784, 659, 587, 698, 880, 698, 659, 784, 1047, 784, 698, 659, 587, 494];
+    const bass = [131, 147, 165, 196];
+    const playBeat = (): void => {
+      if (!bgmEnabled || document.hidden) return;
+      const step = this.bgmStep % melody.length;
+      this.playTone(melody[step], 0.17, step % 4 === 0 ? 'square' : 'triangle', 0.009);
+      if (step % 4 === 0) this.playTone(bass[Math.floor(step / 4)], 0.34, 'sine', 0.012);
+      this.bgmStep += 1;
+    };
+    playBeat();
+    this.bgmTimer = window.setInterval(playBeat, 240);
+  }
+  stopBgm(): void {
+    if (this.bgmTimer !== null) window.clearInterval(this.bgmTimer);
+    this.bgmTimer = null;
+  }
 }
 
 const audio = new CircusAudio();
@@ -299,6 +365,7 @@ const floatGain = (amount: number): void => {
 };
 
 const doPrompt = (performerId?: PerformerId): void => {
+  audio.startBgm();
   const wasOvation = state.ovationUntil > Date.now();
   const gained = performerId ? promptPerformer(state, performerId) : crackWhip(state);
   if (gained <= 0) return;
@@ -487,8 +554,14 @@ byId('finaleButton').addEventListener('click', () => {
 
 byId('soundButton').addEventListener('click', () => {
   soundEnabled = !soundEnabled;
-  byId('soundButton').textContent = `SOUND ${soundEnabled ? 'ON' : 'OFF'}`;
+  byId('soundButton').textContent = `SFX ${soundEnabled ? 'ON' : 'OFF'}`;
   if (soundEnabled) audio.buy();
+});
+
+byId('bgmButton').addEventListener('click', () => {
+  bgmEnabled = !bgmEnabled;
+  byId('bgmButton').textContent = `♫ BGM ${bgmEnabled ? 'ON' : 'OFF'}`;
+  if (bgmEnabled) audio.startBgm(); else audio.stopBgm();
 });
 
 byId('guideButton').addEventListener('click', openGuide);
@@ -528,7 +601,15 @@ window.addEventListener('keydown', (event) => {
   doPrompt();
 });
 
-document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(state); });
+window.addEventListener('pointerdown', () => audio.startBgm(), { once: true });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    saveGame(state);
+    audio.stopBgm();
+  } else if (bgmEnabled) {
+    audio.startBgm();
+  }
+});
 window.addEventListener('beforeunload', () => saveGame(state));
 
 if (offlineSeconds > 2) {
