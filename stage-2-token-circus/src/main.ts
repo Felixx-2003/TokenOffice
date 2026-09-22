@@ -148,7 +148,10 @@ root.innerHTML = `
         <strong id="victoryTickets">0 Golden Tickets</strong>
         <span id="victoryTokens">0 lifetime Tokens</span>
       </div>
-      <button id="viewCircusButton" type="button">VIEW CIRCUS</button>
+      <div class="victory-actions">
+        <button id="viewCircusButton" type="button">VIEW CIRCUS</button>
+        <a href="/stage-3/">ENTER STAGE 3 →</a>
+      </div>
     </section>
     <div id="guideOverlay" class="guide-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
       <section class="guide-dialog">

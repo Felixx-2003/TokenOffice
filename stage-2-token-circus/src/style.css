@@ -317,6 +317,10 @@ button:disabled { cursor: not-allowed; filter: grayscale(0.55); opacity: 0.43; }
 .victory-stats span { color: var(--cyan); font: 800 14px/1.2 ui-monospace, monospace; }
 .victory-screen button { margin-top: 14px; min-width: 180px; padding: 13px 24px; border: 2px solid #fff1a1; color: #32180c; background: var(--gold); box-shadow: 0 6px 0 #8a5010, 0 0 26px rgba(255,213,74,0.45); font: 950 13px/1 ui-monospace, monospace; cursor: pointer; }
 .victory-screen button:hover { background: #fff2a3; transform: translateY(-2px); }
+.victory-actions { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.victory-screen .victory-actions button { margin-top: 14px; }
+.victory-actions a { margin-top: 14px; min-width: 180px; padding: 13px 24px; border: 2px solid var(--cyan); color: #08131c; background: var(--cyan); box-shadow: 0 6px 0 #176078, 0 0 26px rgba(56,232,255,0.38); font: 950 13px/1 ui-monospace, monospace; text-decoration: none; }
+.victory-actions a:hover { background: #a4f7ff; transform: translateY(-2px); }
 
 .guide-overlay {
   position: fixed;
