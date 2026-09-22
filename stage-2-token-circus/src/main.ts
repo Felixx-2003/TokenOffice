@@ -138,6 +138,18 @@ root.innerHTML = `
     </main>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <div id="confetti" class="confetti" aria-hidden="true"></div>
+    <section id="victoryScreen" class="victory-screen" data-dismissed="false" role="dialog" aria-modal="true" aria-labelledby="victoryTitle" aria-hidden="true">
+      <div class="victory-rays" aria-hidden="true"></div>
+      <div class="victory-stars" aria-hidden="true">✦ 🎪 ✦</div>
+      <small>FINAL CONTEXT WINDOW CONQUERED</small>
+      <h1 id="victoryTitle">STAGE CLEARED</h1>
+      <p>Your AI circus completed the greatest—and least insured—show in the multiverse.</p>
+      <div class="victory-stats">
+        <strong id="victoryTickets">0 Golden Tickets</strong>
+        <span id="victoryTokens">0 lifetime Tokens</span>
+      </div>
+      <button id="viewCircusButton" type="button">VIEW CIRCUS</button>
+    </section>
     <div id="guideOverlay" class="guide-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
       <section class="guide-dialog">
         <button id="guideClose" class="guide-close" type="button" aria-label="Close how to play">×</button>
@@ -496,6 +508,14 @@ const render = (): void => {
   finaleButton.classList.toggle('affordable', !finaleButton.disabled);
   finaleButton.textContent = state.completed ? 'CONTEXT CONQUERED ✓' : 'FIRE THE FINALE';
   byId('finalePanel').classList.toggle('ready', finale.ready && !state.completed);
+
+  const victoryScreen = byId<HTMLElement>('victoryScreen');
+  if (!state.completed) victoryScreen.dataset.dismissed = 'false';
+  const showVictory = state.completed && victoryScreen.dataset.dismissed !== 'true';
+  victoryScreen.classList.toggle('is-visible', showVictory);
+  victoryScreen.setAttribute('aria-hidden', String(!showVictory));
+  byId('victoryTickets').textContent = `${fmt(state.goldenTickets)} Golden Tickets`;
+  byId('victoryTokens').textContent = `${fmt(state.lifetimeTokens)} lifetime Tokens`;
 };
 
 performerGrid.addEventListener('click', (event) => {
@@ -550,6 +570,15 @@ byId('finaleButton').addEventListener('click', () => {
   showToast('THE GREAT TOKEN CANNON HAS BREACHED CONTEXT!');
   saveGame(state);
   render();
+  byId<HTMLButtonElement>('viewCircusButton').focus();
+});
+
+byId('viewCircusButton').addEventListener('click', () => {
+  const victoryScreen = byId<HTMLElement>('victoryScreen');
+  victoryScreen.dataset.dismissed = 'true';
+  victoryScreen.classList.remove('is-visible');
+  victoryScreen.setAttribute('aria-hidden', 'true');
+  byId<HTMLButtonElement>('whipButton').focus();
 });
 
 byId('soundButton').addEventListener('click', () => {
@@ -627,8 +656,14 @@ window.setInterval(() => saveGame(state), 5_000);
 window.setInterval(() => { if (!state.event) triggerFunnyEvent(); }, 55_000);
 
 render();
+if (state.completed) {
+  window.setTimeout(() => {
+    makeConfetti(120);
+    byId<HTMLButtonElement>('viewCircusButton').focus();
+  }, 180);
+}
 try {
-  if (!localStorage.getItem('token-circus-guide-seen-v1')) window.setTimeout(openGuide, 250);
+  if (!state.completed && !localStorage.getItem('token-circus-guide-seen-v1')) window.setTimeout(openGuide, 250);
 } catch {
-  window.setTimeout(openGuide, 250);
+  if (!state.completed) window.setTimeout(openGuide, 250);
 }

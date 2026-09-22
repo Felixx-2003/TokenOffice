@@ -283,8 +283,40 @@ button:disabled { cursor: not-allowed; filter: grayscale(0.55); opacity: 0.43; }
 .toast { position: fixed; z-index: 50; left: 50%; bottom: 22px; max-width: min(90vw, 520px); transform: translate(-50%, 20px); opacity: 0; pointer-events: none; padding: 11px 16px; border: 2px solid var(--gold); background: #11142d; color: #fff7d9; box-shadow: 7px 7px 0 rgba(0,0,0,0.42); font: 900 12px/1.35 ui-monospace, monospace; text-align: center; transition: 0.2s; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .gain-float { position: absolute; z-index: 12; top: 50%; color: var(--gold); font: 950 18px/1 ui-monospace, monospace; pointer-events: none; animation: gain-float 0.9s ease-out forwards; text-shadow: 2px 2px #65162e; }
-.confetti { position: fixed; z-index: 45; inset: 0; pointer-events: none; overflow: hidden; }
+.confetti { position: fixed; z-index: 95; inset: 0; pointer-events: none; overflow: hidden; }
 .confetti i { position: absolute; top: -16px; width: 8px; height: 16px; animation: confetti-fall 3.3s ease-in forwards; }
+
+.victory-screen {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  overflow: hidden;
+  color: #fff9df;
+  background: radial-gradient(circle at 50% 38%, #872146, #221738 48%, #07091b 78%);
+  text-align: center;
+  transition: opacity 0.4s, visibility 0.4s;
+}
+.victory-screen.is-visible { opacity: 1; visibility: visible; pointer-events: auto; }
+.victory-screen > *:not(.victory-rays) { position: relative; z-index: 2; }
+.victory-rays { position: absolute; inset: -45vmax; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,213,74,0.12) 0 5deg, transparent 5deg 14deg); animation: ray-spin 22s linear infinite; }
+.victory-stars { color: var(--gold); font-size: clamp(38px, 7vw, 78px); letter-spacing: 0.18em; text-shadow: 0 0 28px rgba(255,213,74,0.72); animation: victory-float 1.1s ease-in-out infinite alternate; }
+.victory-screen > small { color: var(--cyan); font: 900 12px/1 ui-monospace, monospace; letter-spacing: 0.2em; }
+.victory-screen h1 { margin: 0; color: white; font: 950 clamp(44px, 9vw, 112px)/0.95 ui-monospace, monospace; letter-spacing: -0.08em; text-shadow: 4px 4px 0 #8c183b, 0 0 34px rgba(255,213,74,0.28); }
+.victory-screen p { max-width: 620px; margin: 0; color: #ded7e8; font-size: 17px; line-height: 1.5; }
+.victory-stats { display: flex; gap: 12px 28px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
+.victory-stats strong { color: var(--gold); font: 950 16px/1.2 ui-monospace, monospace; }
+.victory-stats span { color: var(--cyan); font: 800 14px/1.2 ui-monospace, monospace; }
+.victory-screen button { margin-top: 14px; min-width: 180px; padding: 13px 24px; border: 2px solid #fff1a1; color: #32180c; background: var(--gold); box-shadow: 0 6px 0 #8a5010, 0 0 26px rgba(255,213,74,0.45); font: 950 13px/1 ui-monospace, monospace; cursor: pointer; }
+.victory-screen button:hover { background: #fff2a3; transform: translateY(-2px); }
 
 .guide-overlay {
   position: fixed;
@@ -326,6 +358,8 @@ button:disabled { cursor: not-allowed; filter: grayscale(0.55); opacity: 0.43; }
 @keyframes performer-bounce { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-9px) rotate(3deg); } }
 @keyframes prompted { 0% { transform: scale(1); } 35% { transform: scale(1.32) rotate(12deg); } 100% { transform: scale(1); } }
 @keyframes troupe-pop { 0% { transform: scale(1) rotate(0); } 40% { transform: scale(1.3) rotate(-10deg); filter: drop-shadow(0 0 8px var(--gold)); } 100% { transform: scale(1) rotate(0); } }
+@keyframes ray-spin { to { transform: rotate(360deg); } }
+@keyframes victory-float { from { transform: translateY(-5px) scale(0.98); } to { transform: translateY(5px) scale(1.03); } }
 @keyframes ovation-glow { from { box-shadow: 0 0 14px var(--cyan), inset 0 0 30px rgba(56,232,255,0.15); } to { box-shadow: 0 0 34px var(--gold), inset 0 0 55px rgba(255,213,74,0.22); } }
 @keyframes finale-ready { to { transform: rotate(0.5deg) scale(1.01); } }
 @keyframes gain-float { to { transform: translateY(-70px) rotate(-6deg); opacity: 0; } }
