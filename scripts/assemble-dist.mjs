@@ -11,5 +11,7 @@ await mkdir(path.join(output, 'stage-2'), { recursive: true });
 await cp(path.join(root, 'stage-2-token-circus', 'dist'), path.join(output, 'stage-2'), { recursive: true });
 await mkdir(path.join(output, 'stage-3'), { recursive: true });
 await cp(path.join(root, 'stage-3-token-heist', 'dist'), path.join(output, 'stage-3'), { recursive: true });
+await mkdir(path.join(output, 'stage-4'), { recursive: true });
+await cp(path.join(root, 'stage-4-token-timeline', 'dist'), path.join(output, 'stage-4'), { recursive: true });
 
-console.log('Combined Stage 1 at /, Stage 2 at /stage-2/, and Stage 3 at /stage-3/.');
+console.log('Combined Stages 1–4 at /, /stage-2/, /stage-3/, and /stage-4/.');

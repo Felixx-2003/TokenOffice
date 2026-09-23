@@ -5,15 +5,18 @@
   "workspaces": [
     "stage-1-token-office",
     "stage-2-token-circus",
-    "stage-3-token-heist"
+    "stage-3-token-heist",
+    "stage-4-token-timeline"
   ],
   "scripts": {
     "dev:stage1": "npm run dev --workspace token-office",
     "dev:stage2": "npm run dev --workspace token-circus",
     "dev:stage3": "npm run dev --workspace token-heist",
+    "dev:stage4": "npm run dev --workspace token-timeline",
     "build:stage1": "npm run build --workspace token-office",
     "build:stage2": "npm run build --workspace token-circus -- --base=./",
     "build:stage3": "npm run build --workspace token-heist -- --base=./",
-    "build": "npm run build:stage1 && npm run build:stage2 && npm run build:stage3 && node scripts/assemble-dist.mjs"
+    "build:stage4": "npm run build --workspace token-timeline -- --base=./",
+    "build": "npm run build:stage1 && npm run build:stage2 && npm run build:stage3 && npm run build:stage4 && node scripts/assemble-dist.mjs"
   }
 }

@@ -95,7 +95,7 @@ root.innerHTML = `
       <div class="victory-grid"></div><div class="victory-icon">🔓</div><small>ROOT ACCESS GRANTED</small><h1 id="victoryTitle">STAGE 3 CLEARED</h1>
       <p>The Infinite Context Vault is empty. Somehow, the llama has the keys.</p>
       <div class="victory-stats"><strong id="victoryBlueprints">0 Master Blueprints</strong><span id="victoryCoins">0 lifetime Context Coins</span></div>
-      <button id="viewHeistButton" type="button">VIEW THE CRIME SCENE</button>
+      <div class="victory-actions"><button id="viewHeistButton" type="button">VIEW THE CRIME SCENE</button><a href="/stage-4/">ENTER STAGE 4 →</a></div>
     </section>
     <div id="guideOverlay" class="guide-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
       <section class="guide-dialog"><button id="guideClose" class="guide-close" type="button" aria-label="Close rules">×</button>
